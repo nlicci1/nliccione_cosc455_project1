@@ -49,13 +49,75 @@ static char *trim(const char *str)
     return retval;
 }
 
+// This function gets a lexeme string from the file and copies it to the buffer argument.
+// The possible lexeme strings are passed in as the parameter name lexeme_str_list. 
+// If the next 'n' bytes in the file do not match any of the lexeme strings provided in the lexeme_str_list array
+// then parse error is returned. Otherwise success is returned if a match is found and the next char (if one exists in the file)
+// in the source file is a white space character.
+static int get_lexeme_string(FILE *source_file, char *buffer, size_t blen, value_str_t *lexeme_str_list, size_t array_size)
+{
+    int tmp_char;
+    int i;
+    int retval;
+    unsigned int tmp_buffer_len;
+    unsigned int lexeme_strlen;
+    
+    if (buffer == NULL || blen <= 0 || lexeme_str_list == NULL || array_size <= 0)
+    {
+        return 0;
+    }
+
+    retval = LEXICAL_PARSE_ERROR;
+    for (i = 0; i < array_size; i++)
+    {
+        tmp_buffer_len = strlen(buffer); 
+        lexeme_strlen = strlen(lexeme_str_list[i].str);
+
+        if (tmp_buffer_len < lexeme_strlen)
+        {
+            if (fgets(buffer + tmp_buffer_len, lexeme_strlen - tmp_buffer_len + 1, source_file) == NULL)
+            {
+                fprintf(stderr, "Error: Token %s is not a valid variable lexeme string (EOF reached)\n", buffer);
+                memset(buffer, '\0', blen);
+                break;
+            }
+            else if(strlen(buffer) != lexeme_strlen)
+            {
+                fprintf(stderr, "Error: Token %s is not a valid variable lexeme string\n", buffer);
+                memset(buffer, '\0', blen);
+                break;
+            }
+         }
+         else if(tmp_buffer_len > lexeme_strlen)
+         {
+            fprintf(stderr, "Error: Token %s is not a valid variable lexeme string\n", buffer);
+            memset(buffer, '\0', blen);
+            break;
+         }
+
+         if (strncasecmp(buffer, lexeme_str_list[i].str, lexeme_strlen) == 0)
+         {
+            tmp_char = fgetc(source_file);
+            if (isspace(tmp_char) || tmp_char == EOF)
+            {
+                retval = LEXICAL_PARSE_SUCCESS;
+            }
+            else
+            {
+                fprintf(stderr, "Error: Token %s is not a valid variable lexeme string\n", buffer);
+                memset(buffer, '\0', blen);
+            }
+         }
+     }
+
+     return retval;
+
+}
+
 int get_token(FILE *source_file, char *token_buffer, unsigned int blen) 
 {
-    char *tmp_token = NULL;
-    int i;
     int tmp_char = 0;
     unsigned int retval = 0;
-    unsigned int tmp_len = 0;
     char token_char[2]; 
     char token;
     
@@ -148,7 +210,16 @@ int get_token(FILE *source_file, char *token_buffer, unsigned int blen)
                 }
                 break;
             case DOC_LEXEME:
-                retval = LEXICAL_PARSE_ERROR;
+                if (strlen(token_buffer) > 0)
+                {
+                    ungetc((int) token, source_file);
+                    retval = LEXICAL_PARSE_SUCCESS;
+                }
+                else
+                {
+                    strcat(token_buffer, token_char);
+                    retval = get_lexeme_string(source_file, token_buffer, blen, LEXEME_DOC_STRINGS, LEXEME_DOC_ARRAY_LEN);
+                }
                 break;
             case VAR_LEXEME:
                 if (strlen(token_buffer) > 0)
@@ -159,17 +230,9 @@ int get_token(FILE *source_file, char *token_buffer, unsigned int blen)
                 else
                 {
                     strcat(token_buffer, token_char);
-                    /*
-                    // value_str_t LEXEME_STRINGS[] 
-                    // LEXEME_STRING_ARRAY_LEN 
-                    // for (i = 0; i < LEXEME_STRING_ARRAY_LEN; i++)
-                    int fgetpos(FILE *stream, fpos_t *pos);
-                    int fsetpos(FILE *stream, fpos_t *pos);
-              
-                    */
+                    retval = get_lexeme_string(source_file, token_buffer, blen, LEXEME_VAR_STRINGS, LEXEME_VAR_ARRAY_LEN);
                 }
                     
-                retval = LEXICAL_PARSE_SUCCESS;
                 break;
             default:
                 if (strlen(token_buffer) >= blen - 1)

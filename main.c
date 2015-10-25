@@ -38,13 +38,22 @@ int main(int argc, char **argv)
     {
         retval = get_token(source_file, current_token, MAX_TOKEN_SIZE);
 
-        if (strlen(current_token) > 0)
+        if (retval == LEXICAL_PARSE_SUCCESS) 
         {
             printf("|%s|\n", current_token);
         }
-
-        if (retval != LEXICAL_PARSE_SUCCESS)
+        else if (retval == EOF)
         {
+            printf("|%s|\n", current_token);
+            break;
+        }
+        else
+        {
+            if (current_token != NULL && strlen(current_token) > 0)
+            {
+                fprintf(stderr, "Error: Lexical error: |%s|\n", current_token);
+            }
+
             break;
         }
     }
