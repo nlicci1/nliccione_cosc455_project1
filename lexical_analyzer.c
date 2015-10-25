@@ -101,6 +101,7 @@ static int get_lexeme_string(FILE *source_file, char *buffer, size_t blen, value
             if (isspace(tmp_char) || tmp_char == EOF)
             {
                 retval = LEXICAL_PARSE_SUCCESS;
+                break;
             }
             else
             {
