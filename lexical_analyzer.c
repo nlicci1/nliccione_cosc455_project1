@@ -7,16 +7,6 @@
 #include "lexical_analyzer.h"
 #include "lexemes.h"
 
-value_str_t LEXEME_STRINGS[] = 
-{
-    { LEXEME_DOCB_IDX, "#BEGIN" },
-    { LEXEME_DOCE_IDX, "#END" },
-    { LEXEME_DEFB_IDX, "$DEF" },
-    { LEXEME_DEFUSEE_IDX, "$END" },
-    { LEXEME_USEB_IDX, "$USE" }, 
-    { LEXEME_BOLD_TEXT_IDX , "**" }
-};
-
 // Removes leading and trailing white space from 'str' and returns a copy of that string
 // allocated dynamically. 
 static char *trim(const char *str)
@@ -111,8 +101,7 @@ int get_token(FILE *source_file, char *token_buffer, unsigned int blen)
             case ADDRESSE:
                 if (strlen(token_buffer) > 0)
                 {
-                    ungetc((int) token, source_file);
-                }
+                    ungetc((int) token, source_file); }
                 else
                 {
                     strcat(token_buffer, token_char);
@@ -157,12 +146,30 @@ int get_token(FILE *source_file, char *token_buffer, unsigned int blen)
                         retval = LEXICAL_PARSE_SUCCESS;
                     }
                 }
-                    
                 break;
             case DOC_LEXEME:
-            case VAR_LEXEME:
-                fprintf(stderr, "Error: DOC_LEXEME and VAR_LEXEME not implemented\n");
                 retval = LEXICAL_PARSE_ERROR;
+                break;
+            case VAR_LEXEME:
+                if (strlen(token_buffer) > 0)
+                {
+                    ungetc((int) token, source_file);
+                    retval = LEXICAL_PARSE_SUCCESS;
+                }
+                else
+                {
+                    strcat(token_buffer, token_char);
+                    /*
+                    // value_str_t LEXEME_STRINGS[] 
+                    // LEXEME_STRING_ARRAY_LEN 
+                    // for (i = 0; i < LEXEME_STRING_ARRAY_LEN; i++)
+                    int fgetpos(FILE *stream, fpos_t *pos);
+                    int fsetpos(FILE *stream, fpos_t *pos);
+              
+                    */
+                }
+                    
+                retval = LEXICAL_PARSE_SUCCESS;
                 break;
             default:
                 if (strlen(token_buffer) >= blen - 1)
