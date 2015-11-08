@@ -115,7 +115,7 @@ static int get_lexeme_string(FILE *source_file, char *buffer, size_t blen, value
 
 }
 
-int get_token(FILE *source_file, char *token_buffer, unsigned int blen) 
+static int get_token(FILE *source_file, char *token_buffer, unsigned int blen) 
 {
     int tmp_char = 0;
     unsigned int retval = 0;
@@ -253,12 +253,95 @@ int get_token(FILE *source_file, char *token_buffer, unsigned int blen)
     return retval;
 }
 
+lexical_analyzer_t *LA_create_new(lexical_analyzer_t **lexer, char *source_file_loc)
+{
+    if (!lexer || !source_file_loc || strlen(source_file_loc) < 1)
+    {
+        return NULL;
+    }
+    
+    size_t file_loc_len = strlen(source_file_loc); 
+    lexical_analyzer_t *retval = NULL;
+    *lexer = (lexical_analyzer_t *) malloc(sizeof(**lexer));
+    retval = *lexer;
 
+    if (retval)
+    {
+        retval->source_file_stream = NULL;
+        retval->source_file_location = NULL;
+        retval->current_token = NULL;
+        retval->token_len = 0;
+        
+        retval->source_file_stream = fopen(source_file_loc, "r"); 
+        if (!retval->source_file_stream) 
+        {
+            fprintf(stderr, "Error: Unable to open file %s\n", source_file_loc);
+            goto fopen_failed;
+        }
 
+        retval->source_file_location = (char *) malloc(file_loc_len + 1);
+        if (!retval->source_file_location)
+        {
+            fprintf(stderr, "Error: Unable to allocate memory for the str %s\n", source_file_loc);
+            goto malloc_file_loc_fail;
+        }
+        
+        memset(retval->source_file_location, '\0', file_loc_len + 1);
+        strncpy(retval->source_file_location, source_file_loc, file_loc_len); 
+        
+        retval->current_token = (char *) malloc(LEXICAL_MAX_TOKEN_SIZE);
+        if (!retval->current_token)
+        {
+            fprintf(stderr, "Error: Unable to allocate memory for the str %s\n", source_file_loc);
+            goto malloc_token_str_fail;
+        }
 
+        memset(retval->current_token, '\0', LEXICAL_MAX_TOKEN_SIZE);
+    }
+    else
+    {
+        fprintf(stderr, "Error: Malloc failed in LA_create_new\n");
+    }
 
+    return retval;
 
+// Some error occured free memory accordingly 
+malloc_token_str_fail:
+    free(retval->source_file_location);
+malloc_file_loc_fail:
+    fclose(retval->source_file_stream);
+fopen_failed:
+    free(retval);
+    retval = NULL;
+    return retval;
+}
 
+void LA_free(lexical_analyzer_t **lexer_analyzer)
+{
+    lexical_analyzer_t *lexer = *lexer_analyzer;
 
+    if (lexer)
+    {
+        lexer = *lexer_analyzer;
 
+        if (lexer->source_file_location)
+        {
+            free(lexer->source_file_location);
+        }
+        
+        if (lexer->current_token)
+        {
+            free(lexer->current_token);
+        }
+
+        if (lexer->source_file_stream)
+        {
+            fclose(lexer->source_file_stream);
+        }
+
+        free(lexer);
+        lexer = NULL;
+        *lexer_analyzer = lexer;
+    }
+}
 

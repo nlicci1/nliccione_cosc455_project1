@@ -6,9 +6,8 @@
 #include "lexical_analyzer.h"
 
 int main(int argc, char **argv)
-{
-    char current_token[MAX_TOKEN_SIZE];
-    FILE *source_file = NULL;
+{   
+    lexical_analyzer_t *lexer;
     char *source_file_loc = NULL;
     int retval = EXIT_SUCCESS;
 
@@ -26,14 +25,10 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-
-    source_file = fopen(source_file_loc, "r"); 
-    if (source_file == NULL) 
-    {
-        fprintf(stderr, "Error: Unable to open file %s\n", source_file_loc);
-        return EXIT_FAILURE;
-    }
-
+    LA_create_new(&lexer, source_file_loc);
+    LA_free(&lexer);
+    
+/*
     while (TRUE)
     {
         retval = get_token(source_file, current_token, MAX_TOKEN_SIZE);
@@ -57,10 +52,9 @@ int main(int argc, char **argv)
             break;
         }
     }
+*/
 
-    fclose(source_file);
-
-    return EXIT_SUCCESS;
+    return retval;
 }
 
 int str_ends_with(char *str, char *suffix)

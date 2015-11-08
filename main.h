@@ -1,7 +1,6 @@
 #ifndef MAIN_H
 #define MAIN_H
 
-#define MAX_TOKEN_SIZE 1000
 #define SOURCE_FILE_EXTENSION ".mkd"
 #define TRUE 1
 #define FALSE 0
