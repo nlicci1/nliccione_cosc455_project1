@@ -8,6 +8,7 @@
 int main(int argc, char **argv)
 {   
     lexical_analyzer_t *lexer;
+    char *current_token = NULL;
     char *source_file_loc = NULL;
     int retval = EXIT_SUCCESS;
 
@@ -26,20 +27,18 @@ int main(int argc, char **argv)
     }
 
     LA_create_new(&lexer, source_file_loc);
-    LA_free(&lexer);
     
-/*
     while (TRUE)
     {
-        retval = get_token(source_file, current_token, MAX_TOKEN_SIZE);
+        retval = LA_get_token(lexer, &current_token);
 
-        if (retval == LEXICAL_PARSE_SUCCESS) 
+        if (retval == LA_PARSE_SUCCESS) 
         {
             printf("|%s|\n", current_token);
         }
         else if (retval == EOF)
         {
-            printf("|%s|\n", current_token);
+            printf("|%s|\nstrlen %lu\n", current_token, strlen(current_token));
             break;
         }
         else
@@ -52,7 +51,8 @@ int main(int argc, char **argv)
             break;
         }
     }
-*/
+
+    LA_free(&lexer);
 
     return retval;
 }

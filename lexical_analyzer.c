@@ -67,7 +67,7 @@ static int get_lexeme_string(FILE *source_file, char *buffer, size_t blen, value
         return 0;
     }
 
-    retval = LEXICAL_PARSE_ERROR;
+    retval = LA_PARSE_ERROR;
     for (i = 0; i < array_size; i++)
     {
         tmp_buffer_len = strlen(buffer); 
@@ -78,20 +78,17 @@ static int get_lexeme_string(FILE *source_file, char *buffer, size_t blen, value
             if (fgets(buffer + tmp_buffer_len, lexeme_strlen - tmp_buffer_len + 1, source_file) == NULL)
             {
                 fprintf(stderr, "Error: Token %s is not a valid variable lexeme string (EOF reached)\n", buffer);
-                memset(buffer, '\0', blen);
                 break;
             }
             else if(strlen(buffer) != lexeme_strlen)
             {
                 fprintf(stderr, "Error: Token %s is not a valid variable lexeme string\n", buffer);
-                memset(buffer, '\0', blen);
                 break;
             }
          }
          else if(tmp_buffer_len > lexeme_strlen)
          {
             fprintf(stderr, "Error: Token %s is not a valid variable lexeme string\n", buffer);
-            memset(buffer, '\0', blen);
             break;
          }
 
@@ -100,13 +97,12 @@ static int get_lexeme_string(FILE *source_file, char *buffer, size_t blen, value
             tmp_char = fgetc(source_file);
             if (isspace(tmp_char) || tmp_char == EOF)
             {
-                retval = LEXICAL_PARSE_SUCCESS;
+                retval = LA_PARSE_SUCCESS;
                 break;
             }
             else
             {
                 fprintf(stderr, "Error: Token %s is not a valid variable lexeme string\n", buffer);
-                memset(buffer, '\0', blen);
             }
          }
      }
@@ -126,8 +122,6 @@ static int get_token(FILE *source_file, char *token_buffer, unsigned int blen)
     {
         return 0;
     }
-
-    memset(token_buffer, '\0', blen);
 
     while (retval == 0)
     {
@@ -170,13 +164,13 @@ static int get_token(FILE *source_file, char *token_buffer, unsigned int blen)
                     strcat(token_buffer, token_char);
                 }
                     
-                retval = LEXICAL_PARSE_SUCCESS;
+                retval = LA_PARSE_SUCCESS;
                 break;
             case ITALICS:
                 if (strlen(token_buffer) > 0)
                 {
                     ungetc((int) token, source_file);
-                    retval = LEXICAL_PARSE_SUCCESS;
+                    retval = LA_PARSE_SUCCESS;
                 }
                 else
                 {
@@ -206,7 +200,7 @@ static int get_token(FILE *source_file, char *token_buffer, unsigned int blen)
                             ungetc((int) token, source_file);
                         }
 
-                        retval = LEXICAL_PARSE_SUCCESS;
+                        retval = LA_PARSE_SUCCESS;
                     }
                 }
                 break;
@@ -214,24 +208,34 @@ static int get_token(FILE *source_file, char *token_buffer, unsigned int blen)
                 if (strlen(token_buffer) > 0)
                 {
                     ungetc((int) token, source_file);
-                    retval = LEXICAL_PARSE_SUCCESS;
+                    retval = LA_PARSE_SUCCESS;
                 }
                 else
                 {
                     strcat(token_buffer, token_char);
                     retval = get_lexeme_string(source_file, token_buffer, blen, LEXEME_DOC_STRINGS, LEXEME_DOC_ARRAY_LEN);
+
+                    if (retval != LA_PARSE_SUCCESS)
+                    {
+                        fprintf(stderr, "Error: invalid token %s\n", token_buffer);
+                    }
                 }
                 break;
             case VAR_LEXEME:
                 if (strlen(token_buffer) > 0)
                 {
                     ungetc((int) token, source_file);
-                    retval = LEXICAL_PARSE_SUCCESS;
+                    retval = LA_PARSE_SUCCESS;
                 }
                 else
                 {
                     strcat(token_buffer, token_char);
                     retval = get_lexeme_string(source_file, token_buffer, blen, LEXEME_VAR_STRINGS, LEXEME_VAR_ARRAY_LEN);
+                    
+                    if (retval != LA_PARSE_SUCCESS)
+                    {
+                        fprintf(stderr, "Error: invalid token %s\n", token_buffer);
+                    }
                 }
                     
                 break;
@@ -239,8 +243,7 @@ static int get_token(FILE *source_file, char *token_buffer, unsigned int blen)
                 if (strlen(token_buffer) >= blen - 1)
                 {
                     fprintf(stderr, "Error: Token %s to large\n", token_buffer);
-                    memset(token_buffer, '\0', blen);
-                    retval = LEXICAL_PARSE_ERROR;
+                    retval = LA_PARSE_ERROR;
                 }
                 else
                 {
@@ -248,6 +251,30 @@ static int get_token(FILE *source_file, char *token_buffer, unsigned int blen)
                 }
                 break;
         }
+    }
+
+    return retval;
+}
+
+int LA_get_token(lexical_analyzer_t *lexer, char **current_token)
+{
+    if (!lexer->source_file_stream || !lexer->source_file_location || !lexer->current_token)
+    {
+        return LA_PARSE_ERROR; 
+    }
+    
+    int retval;
+    FILE *source_file = lexer->source_file_stream;
+    char *token_buffer = lexer->current_token;
+    *current_token = token_buffer;
+
+    memset(token_buffer, '\0', LA_MAX_TOKEN_SIZE);
+
+    retval = get_token(source_file, token_buffer, LA_MAX_TOKEN_SIZE);
+
+    if (retval != LA_PARSE_SUCCESS)
+    {
+        memset(token_buffer, '\0', LA_MAX_TOKEN_SIZE);
     }
 
     return retval;
@@ -289,14 +316,14 @@ lexical_analyzer_t *LA_create_new(lexical_analyzer_t **lexer, char *source_file_
         memset(retval->source_file_location, '\0', file_loc_len + 1);
         strncpy(retval->source_file_location, source_file_loc, file_loc_len); 
         
-        retval->current_token = (char *) malloc(LEXICAL_MAX_TOKEN_SIZE);
+        retval->current_token = (char *) malloc(LA_MAX_TOKEN_SIZE);
         if (!retval->current_token)
         {
             fprintf(stderr, "Error: Unable to allocate memory for the str %s\n", source_file_loc);
             goto malloc_token_str_fail;
         }
 
-        memset(retval->current_token, '\0', LEXICAL_MAX_TOKEN_SIZE);
+        memset(retval->current_token, '\0', LA_MAX_TOKEN_SIZE);
     }
     else
     {
@@ -344,4 +371,25 @@ void LA_free(lexical_analyzer_t **lexer_analyzer)
         *lexer_analyzer = lexer;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
