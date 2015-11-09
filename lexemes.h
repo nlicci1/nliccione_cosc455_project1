@@ -23,6 +23,11 @@ typedef enum
     ADDRESSE = ')'
 } lexeme_chars_t;
 
+// Array of lexeme characters
+// LEXEME_SPECIAL_CHAR_CNT is the size of lexeme_char_arr
+#define LEXEME_SPECIAL_CHAR_CNT 18
+extern lexeme_chars_t lexeme_char_arr[];
+
 // The following lexems strings need to be in order such that
 // the string length is in an ascending order. This means that the smallest
 // string values will be contained in the lower indexes and as the index value increases

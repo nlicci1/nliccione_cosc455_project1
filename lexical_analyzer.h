@@ -8,10 +8,10 @@
 
 typedef struct lexical_analyzer
 {
-        FILE *source_file_stream;
-        char *source_file_location;
-        char *current_token;
-        size_t token_len;
+    FILE *source_file_stream;
+    char *source_file_location;
+    char *current_token;
+    size_t token_len;
 } lexical_analyzer_t;
 
 // This function creates a new lexical analyzer structure.
