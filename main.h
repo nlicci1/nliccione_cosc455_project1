@@ -2,8 +2,7 @@
 #define MAIN_H
 
 #define SOURCE_FILE_EXTENSION ".mkd"
-#define TRUE 1
-#define FALSE 0
+#include "include/ds/common.h"
 
 typedef struct
 {

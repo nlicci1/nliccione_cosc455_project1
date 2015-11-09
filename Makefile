@@ -7,7 +7,7 @@ lexical_analyzer.o  \
 all : markdown_compiler
 
 markdown_compiler : $(OBJECTS)
-	$(CC) -o markdown_compiler $(OBJECTS) 
+	$(CC) -o markdown_compiler $(OBJECTS) -L ./lib -lcdatastructures
 
 main.o : main.c lexical_analyzer.h main.h
 	$(CC) $(CFLAGS) -c main.c
