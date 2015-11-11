@@ -1,0 +1,5 @@
+*.o
+*.swp
+*.mkd
+implementation/
+markdown_compiler
