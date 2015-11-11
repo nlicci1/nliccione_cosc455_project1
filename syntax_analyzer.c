@@ -53,6 +53,21 @@ static int istext(char *str)
     return TRUE;
 }
 
+// Adds current_token element into the parse tree (the queue)
+// This function sets the pointer to the element to null so it can be reused
+// when get_token is called again
+static void update_parse_tree(syntax_analyzer_t *sya)
+{
+    if (sya)
+    {
+        if (sya->parse_tree)
+        {
+            queue_enqueue(sya->parse_tree, &sya->current_token);
+            sya->current_token = NULL;
+        }
+    }
+}
+
 static char *get_token(syntax_analyzer_t *syn)
 {
     if (!syn || !syn->lexer)
@@ -78,26 +93,21 @@ static char *get_token(syntax_analyzer_t *syn)
         {
             memset(*retval, '\0', token_len + 1);
             strncpy(*retval, tmp_location, token_len);
+            
+            // If token is only white space
+            // Add it straight to the parse tree
+            // And get next token
+            if (is_whitespace(*retval))
+            {
+                update_parse_tree(syn);
+                *retval = get_token(syn);
+            }
         }
     } 
     
     return *retval;
 }
 
-// Adds current_token element into the parse tree (the queue)
-// This function sets the pointer to the element to null so it can be reused
-// when get_token is called again
-static void update_parse_tree(syntax_analyzer_t *sya)
-{
-    if (sya)
-    {
-        if (sya->parse_tree)
-        {
-            queue_enqueue(sya->parse_tree, &sya->current_token);
-            sya->current_token = NULL;
-        }
-    }
-}
 
 // This function checks to see if the current token matches the terminal character symbol
 // Returns:
