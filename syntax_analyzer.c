@@ -257,54 +257,41 @@ static int syntax_check_production(syntax_analyzer_t *syn, char *format, ...)
 
 // This function implements the optional production variable define as:
 // <variable-define> ::= DEFB TEXT EQSIGN TEXT DEFUSEE <variable-define> | ε
-/*
 static int var_define(syntax_analyzer_t *sya)
 {
     if (!sya)
     {
         return SYN_ANALYZER_PARSE_ERROR;
     }
-
-    char *token = NULL;
-    int retval = SYN_ANALYZER_PARSE_ERROR;
-
-    if ((token = get_token(sya)))
+    
+    const char *var_start_def = LEXEME_VAR_STRINGS[LEXEME_DEFB_IDX].str;
+    const char *var_end_def = LEXEME_VAR_STRINGS[LEXEME_DEFUSEE_IDX].str;
+    int retcode;
+    lexeme_chars_t var_set_value_token = EQSIGN;
+    
+    // Check for our first terminal symbol
+    // If its there than we keep trucking on thru
+    // the BNF train.
+    // If is not present this an optional symbol return
+    // success 
+    retcode = syntax_check_str(sya, var_start_def); 
+    
+    if (retcode == SYN_ANALYZER_PARSE_SUCCESS)
     {
-	    if (strlen(token) == strlen(LEXEME_VAR_STRINGS[LEXEME_DEFB_IDX].str) && (strncasecmp(token, LEXEME_VAR_STRINGS[LEXEME_DEFB_IDX].str, strlen(token)) == 0))
-        {
-            retval = syntax_opt_production_str(sya, LEXEME_VAR_STRINGS[LEXEME_DEFB_IDX].str, LEXEME_VAR_STRINGS[LEXEME_DEFUSEE_IDX].str);
+        retcode = syntax_check_production(sya, "TcTs", NULL, var_set_value_token, NULL, var_end_def); 
 
-            if (retval == SYN_ANALYZER_PARSE_SUCCESS)
-            {
-                if ((token = get_token(sya)) && istext(token))
-                {
-                    update_parse_tree(sya); 
-
-	                if ((token = get_token(sya)) && strlen(token) == strlen(LEXEME_VAR_STRINGS[LEXEME_DEFUSEE_IDX].str) && (strncasecmp(token, LEXEME_VAR_STRINGS[LEXEME_DEFUSEE_IDX].str, strlen(token)) == 0))
-                    {
-                        update_parse_tree(sya); 
-                        retval = var_define(sya);
-                    }
-                    else
-                    {
-                        retval = SYN_ANALYZER_PARSE_ERROR;
-                    }
-                }
-                else
-                {
-                    retval = SYN_ANALYZER_PARSE_ERROR;
-                }
-            }
-        }
-        else
+        if (retcode == SYN_ANALYZER_PARSE_SUCCESS)
         {
-            retval = SYN_ANALYZER_PARSE_SUCCESS;
+            retcode = var_define(sya);
         }
     }
+    else if (retcode == SYN_ANALYZER_PARSE_ERROR)
+    {
+        retcode = SYN_ANALYZER_PARSE_SUCCESS;
+    }
 
-    return retval;
+    return retcode;
 }
-*/
 
 // This function implements the production rule head defined as:
 // TITLEB TEXT TITLEE | ε
@@ -420,13 +407,13 @@ int SYN_check_syntax(syntax_analyzer_t *sya)
     if (retval == SYN_ANALYZER_PARSE_SUCCESS)
     {
         // Check syntax of any global variables
-        //retval = var_define(sya);
-        //
-        //if (retval == SYN_ANALYZER_PARSE_SUCCESS)
-        //{
+        retval = var_define(sya);
+        
+        if (retval == SYN_ANALYZER_PARSE_SUCCESS)
+        {
             // Check for <head> and or <body> productions
             retval = head(sya);
-        //}
+        }
        
         // Move onto <body> DOCE
         if (retval == SYN_ANALYZER_PARSE_SUCCESS)
