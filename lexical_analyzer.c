@@ -218,7 +218,7 @@ static int get_token(FILE *source_file, char *token_buffer, unsigned int blen)
 
                     if (retval != LA_PARSE_SUCCESS)
                     {
-                        fprintf(stderr, "Error: invalid token %s\n", token_buffer);
+                        fprintf(stderr, "Error: Lexical token error: Invalid token %s\n", token_buffer);
                     }
                 }
                 break;
@@ -235,7 +235,7 @@ static int get_token(FILE *source_file, char *token_buffer, unsigned int blen)
                     
                     if (retval != LA_PARSE_SUCCESS)
                     {
-                        fprintf(stderr, "Error: invalid token %s\n", token_buffer);
+                        fprintf(stderr, "Error: Lexical token error: Invalid token %s\n", token_buffer);
                     }
                 }
                     
