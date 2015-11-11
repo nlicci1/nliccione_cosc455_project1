@@ -7,7 +7,7 @@
 typedef struct
 {
     int val;
-    char *str;
+    const char *str;
 } value_str_t;
 
 // Returns 1 if the string ends with the suffix.
