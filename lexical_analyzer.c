@@ -142,6 +142,7 @@ static int get_token(FILE *source_file, char *token_buffer, unsigned int blen)
             // is check to see if we have an empty string. If we do we return 
             // the char as the current token other wise we return the string in the 
             // buffer. 
+            case HEAD:
             case TITLEB:
             case TITLEE:
             case PARAB:
@@ -354,16 +355,19 @@ void LA_free(lexical_analyzer_t **lexer_analyzer)
         if (lexer->source_file_location)
         {
             free(lexer->source_file_location);
+            lexer->source_file_location = NULL;
         }
         
         if (lexer->current_token)
         {
             free(lexer->current_token);
+            lexer->current_token = NULL;
         }
 
         if (lexer->source_file_stream)
         {
             fclose(lexer->source_file_stream);
+            lexer->source_file_stream = NULL;
         }
 
         free(lexer);

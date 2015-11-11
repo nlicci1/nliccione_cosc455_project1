@@ -34,8 +34,8 @@ extern lexeme_chars_t lexeme_char_arr[];
 // so will the string length. 
 
 // These macros are to be used with LEXEME_DOC_STRINGS to directly access each individual lexeme
-#define LEXEME_DOCB_IDX 0
-#define LEXEME_DOCE_IDX 1
+#define LEXEME_DOCE_IDX 0 
+#define LEXEME_DOCB_IDX 1 
 #define LEXEME_DOC_ARRAY_LEN 2
 extern value_str_t LEXEME_DOC_STRINGS[];
 

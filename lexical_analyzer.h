@@ -6,6 +6,8 @@
 #define LA_PARSE_SUCCESS 1
 #define LA_PARSE_ERROR 2
 
+#include <stdio.h>
+
 typedef struct lexical_analyzer
 {
     FILE *source_file_stream;

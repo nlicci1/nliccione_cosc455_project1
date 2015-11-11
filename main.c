@@ -4,11 +4,12 @@
 
 #include "main.h"
 #include "lexical_analyzer.h"
+#include "syntax_analyzer.h"
 
 int main(int argc, char **argv)
-{   
+{
     lexical_analyzer_t *lexer;
-    char *current_token = NULL;
+    syntax_analyzer_t *sya;
     char *source_file_loc = NULL;
     int retval = EXIT_SUCCESS;
 
@@ -27,31 +28,14 @@ int main(int argc, char **argv)
     }
 
     LA_create_new(&lexer, source_file_loc);
+    SYN_create_new(&sya, lexer);
     
-    while (TRUE)
-    {
-        retval = LA_get_token(lexer, &current_token);
-
-        if (retval == LA_PARSE_SUCCESS) 
-        {
-            printf("|%s|\n", current_token);
-        }
-        else if (retval == EOF)
-        {
-            printf("|%s|\nstrlen %lu\n", current_token, strlen(current_token));
-            break;
-        }
-        else
-        {
-            if (current_token != NULL && strlen(current_token) > 0)
-            {
-                fprintf(stderr, "Error: Lexical error: |%s|\n", current_token);
-            }
-
-            break;
-        }
-    }
-
+    // kick off syntax checker function call thingy here
+    SYN_check_syntax(sya);
+    // Print our parse tree out
+    SYN_print_parse_tree(sya);
+    
+    SYN_free(&sya);
     LA_free(&lexer);
 
     return retval;
