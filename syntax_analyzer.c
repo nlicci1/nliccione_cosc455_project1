@@ -598,10 +598,21 @@ static int inner_item(syntax_analyzer_t *sya)
         || (retcode != SYN_ANALYZER_PARSE_ERROR && (retcode = bold(sya)) == SYN_ANALYZER_PARSE_SUCCESS) 
         || (retcode != SYN_ANALYZER_PARSE_ERROR && (retcode = italics(sya)) == SYN_ANALYZER_PARSE_SUCCESS)
         || (retcode != SYN_ANALYZER_PARSE_ERROR && (retcode = link(sya)) == SYN_ANALYZER_PARSE_SUCCESS) 
-        || (retcode != SYN_ANALYZER_PARSE_ERROR && (retcode = syntax_check_plain_text(sya)) == SYN_ANALYZER_PARSE_SUCCESS)
        )
     {
         retcode = inner_item(sya);
+    }
+    else if (retcode != SYN_ANALYZER_PARSE_ERROR) 
+    {
+        retcode = syntax_check_plain_text(sya);
+        if (retcode == SYN_ANALYZER_PARSE_ERROR)
+        {
+            retcode = SYN_ANALYZER_PARSE_OPT_SUCCESS;
+        }
+        else if (retcode == SYN_ANALYZER_PARSE_SUCCESS)
+        {
+            retcode = inner_item(sya);
+        }
     }
 
     return retcode;
@@ -642,10 +653,121 @@ static int list_item(syntax_analyzer_t *sya)
     }
     else if (retcode == SYN_ANALYZER_PARSE_ERROR)
     {
-        retcode = SYN_ANALYZER_PARSE_SUCCESS;
+        retcode = SYN_ANALYZER_PARSE_OPT_SUCCESS;
     }
 
     return retcode;
+}
+
+// <inner-text> ::= <variable-use> <inner-text>
+// | <bold> <inner-text>
+// | <italics> <inner-text>
+// | <listitem> <inner-text>
+// | <audio> <inner-text>
+// | <video> <inner-text>
+// | <link> <inner-text>
+// | <newline> <inner-text>
+// | TEXT <inner-text>
+// | ε
+static int inner_text(syntax_analyzer_t *sya)
+{
+    if (!sya)
+    {
+        return SYN_ANALYZER_PARSE_ERROR;
+    }
+    
+    int retcode = SYN_ANALYZER_PARSE_ERROR;
+    
+    if (
+        ((retcode = list_item(sya)) == SYN_ANALYZER_PARSE_SUCCESS) 
+        || (retcode != SYN_ANALYZER_PARSE_ERROR && (retcode = var_use(sya)) == SYN_ANALYZER_PARSE_SUCCESS) 
+        || (retcode != SYN_ANALYZER_PARSE_ERROR && (retcode = bold(sya)) == SYN_ANALYZER_PARSE_SUCCESS) 
+        || (retcode != SYN_ANALYZER_PARSE_ERROR && (retcode = italics(sya)) == SYN_ANALYZER_PARSE_SUCCESS)
+        || (retcode != SYN_ANALYZER_PARSE_ERROR && (retcode = link(sya)) == SYN_ANALYZER_PARSE_SUCCESS) 
+        || (retcode != SYN_ANALYZER_PARSE_ERROR && (retcode = video(sya)) == SYN_ANALYZER_PARSE_SUCCESS) 
+        || (retcode != SYN_ANALYZER_PARSE_ERROR && (retcode = audio(sya)) == SYN_ANALYZER_PARSE_SUCCESS) 
+       )
+    {
+        retcode = inner_paragraph_text(sya);
+    }
+    else if (retcode != SYN_ANALYZER_PARSE_ERROR) 
+    {
+        retcode = syntax_check_plain_text(sya);
+        
+        if (retcode == SYN_ANALYZER_PARSE_ERROR)
+        {
+            retcode = SYN_ANALYZER_PARSE_OPT_SUCCESS;
+        }
+        else if (retcode == SYN_ANALYZER_PARSE_SUCCESS)
+        {
+            retcode = inner_item(sya);
+        }
+        else if (retcode == SYN_ANALYZER_PARSE_OPT_SUCCESS)
+        {
+            retcode = syntax_check_char(sya, NEWLINE);
+
+            if (retcode == SYN_ANALYZER_PARSE_ERROR)
+            {
+                retcode = SYN_ANALYZER_PARSE_OPT_SUCCESS;
+            }
+            else if (retcode == SYN_ANALYZER_PARSE_SUCCESS)
+            {
+                retcode = inner_item(sya);
+            }
+        }
+    }
+
+    return retcode;
+}
+
+
+// <paragraph> ::= PARAB <variable-define> <inner_paragraph_text> PARAE
+static int paragraph(syntax_analyzer_t *sya)
+{
+    if (!sya)
+    {
+        return SYN_ANALYZER_PARSE_ERROR;
+    }
+    
+    lexeme_chars_t para_start = PARAB;
+    lexeme_chars_t para_end = PARAE;
+    int retcode;
+    
+    // Check for our first terminal symbol
+    // If its there than we keep trucking on thru
+    // the BNF train.
+    // If is not present this an optional symbol so 
+    // we can return (optional success).
+    retcode = syntax_check_char(sya, para_start); 
+    
+    if (retcode == SYN_ANALYZER_PARSE_SUCCESS) 
+    {
+        // Check syntax of any local variables
+        retcode = var_define(sya);
+        
+        if (retcode == SYN_ANALYZER_PARSE_SUCCESS || retcode == SYN_ANALYZER_PARSE_OPT_SUCCESS)
+        {
+            // Check inner-text of paragraph 
+            retcode = inner_text(sya);
+
+            if (retcode == SYN_ANALYZER_PARSE_SUCCESS || retcode == SYN_ANALYZER_PARSE_OPT_SUCCESS)
+            {
+                retcode = syntax_check_char(sya, para_end); 
+            }
+        } 
+    }
+    else if (retcode == SYN_ANALYZER_PARSE_ERROR)
+    {
+        retcode = SYN_ANALYZER_PARSE_OPT_SUCCESS;
+    }
+
+    return retcode;
+}
+
+static int body(syntax_analyzer_t *sya)
+{
+    int retcode;
+    retcode = paragraph(sya);
 }
 
 void SYN_print_parse_tree(syntax_analyzer_t *sya)
@@ -695,7 +817,7 @@ int SYN_check_syntax(syntax_analyzer_t *sya)
         // Check syntax of any global variables
         retval = var_define(sya);
         
-        if (retval == SYN_ANALYZER_PARSE_SUCCESS)
+        if (retval == SYN_ANALYZER_PARSE_SUCCESS || retval == SYN_ANALYZER_PARSE_OPT_SUCCESS)
         {
             // Check for <head> and or <body> productions
             retval = head(sya);
