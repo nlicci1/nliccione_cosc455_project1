@@ -283,7 +283,7 @@ static int var_define(syntax_analyzer_t *sya)
     // If its there than we keep trucking on thru
     // the BNF train.
     // If is not present this an optional symbol return
-    // success 
+    // opt success 
     retcode = syntax_check_str(sya, var_start_def); 
     
     if (retcode == SYN_ANALYZER_PARSE_SUCCESS)
@@ -297,7 +297,7 @@ static int var_define(syntax_analyzer_t *sya)
     }
     else if (retcode == SYN_ANALYZER_PARSE_ERROR)
     {
-        retcode = SYN_ANALYZER_PARSE_SUCCESS;
+        retcode = SYN_ANALYZER_PARSE_OPT_SUCCESS;
     }
 
     return retcode;
@@ -329,7 +329,7 @@ static int var_use(syntax_analyzer_t *sya)
     }
     else if (retcode == SYN_ANALYZER_PARSE_ERROR)
     {
-        retcode = SYN_ANALYZER_PARSE_SUCCESS;
+        retcode = SYN_ANALYZER_PARSE_OPT_SUCCESS;
     }
 
     return retcode;
@@ -360,7 +360,7 @@ static int bold(syntax_analyzer_t *sya)
     }
     else if (retcode == SYN_ANALYZER_PARSE_ERROR)
     {
-        retcode = SYN_ANALYZER_PARSE_SUCCESS;
+        retcode = SYN_ANALYZER_PARSE_OPT_SUCCESS;
     }
 
     return retcode;
@@ -391,7 +391,7 @@ static int italics(syntax_analyzer_t *sya)
     }
     else if (retcode == SYN_ANALYZER_PARSE_ERROR)
     {
-        retcode = SYN_ANALYZER_PARSE_SUCCESS;
+        retcode = SYN_ANALYZER_PARSE_OPT_SUCCESS;
     }
 
     return retcode;
@@ -442,7 +442,7 @@ static int link(syntax_analyzer_t *sya)
     }
     else if (retcode == SYN_ANALYZER_PARSE_ERROR)
     {
-        retcode = SYN_ANALYZER_PARSE_SUCCESS;
+        retcode = SYN_ANALYZER_PARSE_OPT_SUCCESS;
     }
     
     return retcode;
@@ -473,7 +473,7 @@ static int audio(syntax_analyzer_t *sya)
     }
     else if (retcode == SYN_ANALYZER_PARSE_ERROR)
     {
-        retcode = SYN_ANALYZER_PARSE_SUCCESS;
+        retcode = SYN_ANALYZER_PARSE_OPT_SUCCESS;
     }
     
     return retcode;
@@ -503,7 +503,7 @@ static int video(syntax_analyzer_t *sya)
     }
     else if (retcode == SYN_ANALYZER_PARSE_ERROR)
     {
-        retcode = SYN_ANALYZER_PARSE_SUCCESS;
+        retcode = SYN_ANALYZER_PARSE_OPT_SUCCESS;
     }
     
     return retcode;
@@ -535,7 +535,7 @@ static int title(syntax_analyzer_t *sya)
     }
     else if (retcode == SYN_ANALYZER_PARSE_ERROR)
     {
-        retcode = SYN_ANALYZER_PARSE_SUCCESS;
+        retcode = SYN_ANALYZER_PARSE_OPT_SUCCESS;
     }
     
     return retcode;
@@ -572,15 +572,18 @@ static int head(syntax_analyzer_t *sya)
     }
     else if (retcode == SYN_ANALYZER_PARSE_ERROR)
     {
-        retcode = SYN_ANALYZER_PARSE_SUCCESS;
+        retcode = SYN_ANALYZER_PARSE_OPT_SUCCESS;
     }
     
     return retcode;
 }
 
-// define inner item here
-//
-
+// <inner-item> ::= <variable-use> <inner- item>
+// | <bold> <inner- item>
+// | <italics> <inner- item>
+// | <link> <inner- item>
+// | TEXT <inner- item>
+// | ε
 static int inner_item(syntax_analyzer_t *sya)
 {
     if (!sya)
@@ -588,9 +591,20 @@ static int inner_item(syntax_analyzer_t *sya)
         return SYN_ANALYZER_PARSE_ERROR;
     }
     
-    int retcode;
+    int retcode = SYN_ANALYZER_PARSE_ERROR;
     
-    return 0;
+    if (
+        ((retcode = var_use(sya)) == SYN_ANALYZER_PARSE_SUCCESS) 
+        || (retcode != SYN_ANALYZER_PARSE_ERROR && (retcode = bold(sya)) == SYN_ANALYZER_PARSE_SUCCESS) 
+        || (retcode != SYN_ANALYZER_PARSE_ERROR && (retcode = italics(sya)) == SYN_ANALYZER_PARSE_SUCCESS)
+        || (retcode != SYN_ANALYZER_PARSE_ERROR && (retcode = link(sya)) == SYN_ANALYZER_PARSE_SUCCESS) 
+        || (retcode != SYN_ANALYZER_PARSE_ERROR && (retcode = syntax_check_plain_text(sya)) == SYN_ANALYZER_PARSE_SUCCESS)
+       )
+    {
+        retcode = inner_item(sya);
+    }
+
+    return retcode;
 
 }
 
@@ -615,10 +629,15 @@ static int list_item(syntax_analyzer_t *sya)
     
     if (retcode == SYN_ANALYZER_PARSE_SUCCESS)
     {
-        // Call inner item func here
-        if (retcode == SYN_ANALYZER_PARSE_SUCCESS)
+        retcode = inner_item(sya);
+        if (retcode == SYN_ANALYZER_PARSE_SUCCESS || retcode == SYN_ANALYZER_PARSE_OPT_SUCCESS)
         {
-            retcode = list_item(sya);
+            retcode = syntax_check_char(sya, list_item_end); 
+
+            if (retcode == SYN_ANALYZER_PARSE_SUCCESS)
+            {
+                retcode = list_item(sya);
+            }
         }
     }
     else if (retcode == SYN_ANALYZER_PARSE_ERROR)
