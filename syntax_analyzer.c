@@ -584,6 +584,10 @@ static int head(syntax_analyzer_t *sya)
 // | <link> <inner- item>
 // | TEXT <inner- item>
 // | ε
+// Returns:
+//  SYN_ANALYZER_PARSE_OPT_SUCCESS - If parsing was successfull.
+//  SYN_ANALYZER_PARSE_ERROR - If a syntax error occured
+//  SYN_ANALYZER_EMPTY_TOKEN - If EOF was reached
 static int inner_item(syntax_analyzer_t *sya)
 {
     if (!sya)
@@ -620,6 +624,11 @@ static int inner_item(syntax_analyzer_t *sya)
 }
 
 // <listitem> ::= LISTITEMB <inner-item> LISTITEME <list-item> | ε 
+// Returns:
+//  SYN_ANALYZER_PARSE_OPT_SUCCESS - If parsing was successfull e.g stuff was added to parse tree 
+//  and at some point in the file the starting symbol was not found this is then returned. 
+//  SYN_ANALYZER_PARSE_ERROR - If a syntax error occured. 
+//  SYN_ANALYZER_EMPTY_TOKEN - If EOF was reached
 static int list_item(syntax_analyzer_t *sya)
 {
     if (!sya)
@@ -669,6 +678,10 @@ static int list_item(syntax_analyzer_t *sya)
 // | <newline> <inner-text>
 // | TEXT <inner-text>
 // | ε
+// Returns:
+//  SYN_ANALYZER_PARSE_OPT_SUCCESS - If parsing was successfull.
+//  SYN_ANALYZER_PARSE_ERROR - If a syntax error occured
+//  SYN_ANALYZER_EMPTY_TOKEN - If EOF was reached
 static int inner_text(syntax_analyzer_t *sya)
 {
     if (!sya)
@@ -688,7 +701,7 @@ static int inner_text(syntax_analyzer_t *sya)
         || (retcode != SYN_ANALYZER_PARSE_ERROR && (retcode = audio(sya)) == SYN_ANALYZER_PARSE_SUCCESS) 
        )
     {
-        retcode = inner_paragraph_text(sya);
+        retcode = inner_text(sya);
     }
     else if (retcode != SYN_ANALYZER_PARSE_ERROR) 
     {
@@ -722,6 +735,13 @@ static int inner_text(syntax_analyzer_t *sya)
 
 
 // <paragraph> ::= PARAB <variable-define> <inner_paragraph_text> PARAE
+// Returns:
+//  SYN_ANALYZER_PARSE_OPT_SUCCESS - If parsing was successfull and the starting 
+//  PARAB symbol was not found
+//  SYN_ANALYZER_PARSE_SUCCESS - If parsing was successfull and everything was 
+//  added to the parse tree
+//  SYN_ANALYZER_PARSE_ERROR - If a syntax error occured
+//  SYN_ANALYZER_EMPTY_TOKEN - If EOF was reached
 static int paragraph(syntax_analyzer_t *sya)
 {
     if (!sya)
@@ -764,10 +784,38 @@ static int paragraph(syntax_analyzer_t *sya)
     return retcode;
 }
 
+// Returns:
+//  SYN_ANALYZER_PARSE_SUCCESS - If parsing was successfull and everything was 
+//  added to the parse tree OR any contents that make up body was not found
+//  SYN_ANALYZER_PARSE_ERROR - If a syntax error occured
+//  SYN_ANALYZER_EMPTY_TOKEN - If EOF was reached
 static int body(syntax_analyzer_t *sya)
 {
     int retcode;
-    retcode = paragraph(sya);
+
+    retcode = inner_text(sya);
+    
+    if (retcode == SYN_ANALYZER_PARSE_OPT_SUCCESS)
+    {
+        retcode = paragraph(sya);
+
+        if (retcode == SYN_ANALYZER_PARSE_OPT_SUCCESS)
+        {
+           retcode = SYN_ANALYZER_PARSE_SUCCESS;
+        }
+        else if (retcode == SYN_ANALYZER_PARSE_SUCCESS)
+        {
+            retcode = body(sya);
+        }
+    }
+    
+    // Normalize error to success or failure here
+    if (retcode == SYN_ANALYZER_PARSE_OPT_SUCCESS)
+    {
+        retcode = SYN_ANALYZER_PARSE_SUCCESS;
+    }
+    
+    return retcode;
 }
 
 void SYN_print_parse_tree(syntax_analyzer_t *sya)
@@ -826,12 +874,23 @@ int SYN_check_syntax(syntax_analyzer_t *sya)
         // Move onto <body> DOCE
         if (retval == SYN_ANALYZER_PARSE_SUCCESS)
         {
-            // Check for DOCE
-            retval = syntax_check_str(sya, doc_end);
-            if (retval != SYN_ANALYZER_PARSE_SUCCESS)
+
+            retval = body(sya);
+
+            if (retval == SYN_ANALYZER_PARSE_SUCCESS)
+            {
+                // Check for DOCE
+                retval = syntax_check_str(sya, doc_end);
+                if (retval != SYN_ANALYZER_PARSE_SUCCESS)
+                {
+                    current_token = get_token(sya);
+                    fprintf(stderr, "Error: Syntax error. Expected: %s Found: %s\n", doc_end, current_token);
+                }
+            }
+            else 
             {
                 current_token = get_token(sya);
-                fprintf(stderr, "Error: Syntax error. Expected: %s Found: %s\n", doc_end, current_token);
+                fprintf(stderr, "Error: Syntax error invalid token found in <body>.\nCurrent unexpected token found is: %s\n", current_token);
             }
         }
         else
@@ -848,7 +907,8 @@ int SYN_check_syntax(syntax_analyzer_t *sya)
     
     if (retval != SYN_ANALYZER_PARSE_SUCCESS)
     {
-        // We do not want a broken parse tree being accessed outside of this obj file. So we destroy the parse tree.
+        // We do not want a broken parse tree being accessed outside of this obj file. 
+        // So we destroy the parse tree if there is a syntax error.
         SYN_free_parse_tree(sya);
     }
 
