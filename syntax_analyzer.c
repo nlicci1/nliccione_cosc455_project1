@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdarg.h>
 
 #include "main.h"
 #include "syntax_analyzer.h"
@@ -98,118 +99,165 @@ static void update_parse_tree(syntax_analyzer_t *sya)
     }
 }
 
-// This function implements a small subset of the simpler grammar.
-// This functon implements a syntax check for a terminal symbol followed by TEXT 
-// and then the ending terminal symbol. 
-// Please note: This should only be used for productions that are optional
-// For example: 
-// <title> ::= TITLEB TEXT TITLEE | ε 
-// or it could be a production check like this 
-// <bold> ::= BOLD TEXT BOLD | ε
-// Parameters:
-//  syntax_analyzer_t * - Pointer to a syntax obj
-//  lexeme_chars_t - Starting terminal symbol
-//  lexeme_chars_t - Ending terminal symbol
+// This function checks to see if the current token matches the terminal character symbol
 // Returns:
-//  SYN_ANALYZER_PARSE_ERROR - If the syntax rules were violated
-//  SYN_ANALYZER_PARSE_SUCCESS - If there was no starting match symbol or 
-//  all symbols that make up this production were added into the parse tree
-static int syntax_opt_production(syntax_analyzer_t *syn, lexeme_chars_t terminal_start, lexeme_chars_t terminal_end)
+// SYN_ANALYZER_PARSE_SUCCESS - If the terminal matches the current token input and was added to the parse tree
+// SYN_ANALYZER_PARSE_ERROR - If a syntax error occured
+// SYN_ANALYZER_EMPTY_TOKEN - If get_token returns a NULL pointer
+static int syntax_check_char(syntax_analyzer_t *syn, lexeme_chars_t terminal)
 {
     if (!syn)
     {
-       return SYN_ANALYZER_PARSE_ERROR;
+        return SYN_ANALYZER_PARSE_ERROR;
     }
-    
+
     char *token = NULL;
     int retval = SYN_ANALYZER_PARSE_ERROR;
-    
+
     if ((token = get_token(syn)))
     {
-	    if (token[0] == terminal_start)
+        if (strlen(token) == 1 && token[0] == terminal)
         {
             update_parse_tree(syn); 
-	        if ((token = get_token(syn)) && istext(token))
-	        {
-                update_parse_tree(syn);
-		        if ((token = get_token(syn)))
-		        {
-		            if (token[0] == terminal_end)
-		            {
-		                update_parse_tree(syn);
-		                retval = SYN_ANALYZER_PARSE_SUCCESS;
-		            }
-		        }
-	        }
-	    }
-        else
-        {
-            // We set retval to success because the symbol that was found did not belong to
-	        // this optional production.
-	        retval = SYN_ANALYZER_PARSE_SUCCESS;
+            retval = SYN_ANALYZER_PARSE_SUCCESS;
         }
+    }
+    else
+    {
+        retval = SYN_ANALYZER_EMPTY_TOKEN;
     }
 
     return retval;
 }
 
-// This function implements a small subset of the simpler grammar.
-// This functon implements a syntax check for a terminal symbol followed by TEXT 
-// and then the ending terminal symbol. 
-// Please note: This should only be used for productions that are optional
+// Checks to see if the current token matches the terminal lexeme string
+// If it does then add it into the parse tree else
+// return error
+static int syntax_check_str(syntax_analyzer_t *syn, const char *terminal)
+{
+    if (!syn || !terminal)
+    {
+        return SYN_ANALYZER_PARSE_ERROR;
+    }
+
+    char *token = NULL;
+    size_t token_len;
+    size_t terminal_strlen;
+    int retval = SYN_ANALYZER_PARSE_ERROR;
+
+    if ((token = get_token(syn)))
+    {
+        token_len = strlen(token);
+        terminal_strlen = strlen(terminal);
+        if ((token_len == terminal_strlen) && (strncasecmp(token, terminal, token_len) == 0))
+        {
+            update_parse_tree(syn); 
+            retval = SYN_ANALYZER_PARSE_SUCCESS;
+	    }
+    }
+    else
+    {
+        retval = SYN_ANALYZER_EMPTY_TOKEN;
+    }
+
+    return retval;
+}
+
+// Checks to see if the current token is plain text
+// If it is then add it into the parse tree else
+// return error.
+static int syntax_check_plain_text(syntax_analyzer_t *syn)
+{
+    if (!syn)
+    {
+        return SYN_ANALYZER_PARSE_ERROR;
+    }
+
+    char *token = NULL;
+    int retval = SYN_ANALYZER_PARSE_ERROR;
+
+    if ((token = get_token(syn)))
+    {
+        if (istext(token))
+        {
+            update_parse_tree(syn); 
+            retval = SYN_ANALYZER_PARSE_SUCCESS;
+        }
+    }
+    else
+    {
+        retval = SYN_ANALYZER_EMPTY_TOKEN;
+    }
+
+    return retval;
+
+}
+
+// This functon is a generic syntax checker for a production. It will add syntactically correct symbols to the
+// parse tree if they follow the production rules. 
 // For example: 
 // <title> ::= TITLEB TEXT TITLEE | ε 
 // or it could be a production check like this 
 // <bold> ::= BOLD TEXT BOLD | ε
 // Parameters:
 //  syntax_analyzer_t * - Pointer to a syntax obj
-//  const char * - Starting terminal symbol
-//  const char * - Ending terminal symbol
+//  const * - The format list where each character represents the type of the variable passed. 
+//      The valid types are:
+//          c - The current variable is a char and will be matched with current token
+//          s - The current variable is a string and will be matched with current token
+//          T - The current variable is NULL and allows any plain text in the current token
+//  ... - Is the variable number of arguments. Based on the const *format list each variable is checked against
+//  the current input token. 
 // Returns:
+//  SYN_ANALYZER_EMPTY_TOKEN - If get_token returns a NULL pointer
 //  SYN_ANALYZER_PARSE_ERROR - If the syntax rules were violated
-//  SYN_ANALYZER_PARSE_SUCCESS - If there was no starting match symbol or 
-//  all symbols that make up this production were added into the parse tree
-static int syntax_opt_production_str(syntax_analyzer_t *syn, const char *terminal_start, const char *terminal_end)
+//  SYN_ANALYZER_PARSE_SUCCESS - If all symbols that make up this production were added into the parse tree
+static int syntax_check_production(syntax_analyzer_t *syn, char *format, ...)
 {
-    if (!syn)
+    if (!syn || !format || *format == '\0')
     {
        return SYN_ANALYZER_PARSE_ERROR;
     }
     
-    char *token = NULL;
+    va_list syntax_rule;
     int retval = SYN_ANALYZER_PARSE_ERROR;
     
-    if ((token = get_token(syn)))
-    {
-	    if (strlen(token) == strlen(terminal_start) && (strncasecmp(token, terminal_start, strlen(token)) == 0))
-        {
-            update_parse_tree(syn); 
-	        if ((token = get_token(syn)) && istext(token))
-	        {
-                update_parse_tree(syn);
-		        if ((token = get_token(syn)))
-		        {
-	                if (strlen(token) == strlen(terminal_end) && (strncasecmp(token, terminal_end, strlen(token)) == 0))
-		            {
-		                update_parse_tree(syn);
-		                retval = SYN_ANALYZER_PARSE_SUCCESS;
-		            }
-		        }
-	        }
-	    }
-        else
-        {
-            // We set retval to success because the symbol that was found did not belong to
-	        // this optional production.
-	        retval = SYN_ANALYZER_PARSE_SUCCESS;
-        }
-    }
+    va_start(syntax_rule, format);
 
+    while (*format != '\0')
+    {
+        switch (*format)
+        {
+            case 'c':
+                retval = syntax_check_char(syn, va_arg(syntax_rule, int));
+                break;
+            case 's':
+                retval = syntax_check_str(syn, va_arg(syntax_rule, char *));
+                break;
+            case 'T':
+                va_arg(syntax_rule, void *);
+                retval = syntax_check_plain_text(syn);
+                break;
+            default:
+                fprintf(stderr, "Error: Invalid format. Expected (c | s | T)\n");
+                retval = SYN_ANALYZER_PARSE_ERROR;
+                break;
+        }
+
+        if (retval != SYN_ANALYZER_PARSE_SUCCESS)
+        {
+            break;
+        }
+
+        format++;
+    }
+    
     return retval;
 }
 
 // This function implements the optional production variable define as:
 // <variable-define> ::= DEFB TEXT EQSIGN TEXT DEFUSEE <variable-define> | ε
+/*
 static int var_define(syntax_analyzer_t *sya)
 {
     if (!sya)
@@ -246,7 +294,6 @@ static int var_define(syntax_analyzer_t *sya)
                 {
                     retval = SYN_ANALYZER_PARSE_ERROR;
                 }
-                
             }
         }
         else
@@ -257,48 +304,74 @@ static int var_define(syntax_analyzer_t *sya)
 
     return retval;
 }
+*/
 
 // This function implements the production rule head defined as:
-// <head> ::= HEAD <title> HEAD | ε
-static int head(syntax_analyzer_t *sya)
+// TITLEB TEXT TITLEE | ε
+static int title(syntax_analyzer_t *sya)
 {
     if (!sya)
     {
         return SYN_ANALYZER_PARSE_ERROR;
     }
 
-    int retcode = SYN_ANALYZER_PARSE_SUCCESS;
-    char *tmp = get_token(sya);
+    lexeme_chars_t title_start = TITLEB;
+    lexeme_chars_t title_end = TITLEE;
+    int retcode;
     
-    // If we have a token lets check it against the head sytnax
-    // else it is an error if we do not get a token returned
-    if (tmp)
+    // Check for our first terminal symbol
+    // If its there than we keep trucking on thru
+    // the BNF train.
+    // If is not present this an optional symbol return
+    // success 
+    retcode = syntax_check_production(sya, "c", title_start); 
+
+    if (retcode == SYN_ANALYZER_PARSE_SUCCESS)
     {
-        if (tmp[0] == HEAD)
+        retcode = syntax_check_production(sya, "Tc", NULL, title_end); 
+    }
+    else if (retcode == SYN_ANALYZER_PARSE_ERROR)
+    {
+        retcode = SYN_ANALYZER_PARSE_SUCCESS;
+    }
+    
+    return retcode;
+}
+
+// This function implements the production rule head defined as:
+// <head> ::= HEAD <title> HEAD | ε
+static int head(syntax_analyzer_t *sya)
+{   
+    if (!sya)
+    {
+        return SYN_ANALYZER_PARSE_ERROR;
+    }
+
+    lexeme_chars_t title_start = HEAD;
+    lexeme_chars_t title_end = HEAD;
+    int retcode;
+    
+    // Check for our first terminal symbol
+    // If its there than we keep trucking on thru
+    // the BNF train.
+    // If is not present this an optional symbol return
+    // success 
+    retcode = syntax_check_production(sya, "c", title_start); 
+
+    if (retcode == SYN_ANALYZER_PARSE_SUCCESS)
+    {
+        retcode = title(sya);
+
+        if (retcode == SYN_ANALYZER_PARSE_SUCCESS)
         {
-            update_parse_tree(sya);
-            retcode = syntax_opt_production(sya, TITLEB, TITLEE); 
-
-            if (retcode != SYN_ANALYZER_PARSE_ERROR)
-            {
-                tmp = get_token(sya);
-
-                if (tmp[0] != HEAD)
-                {
-                    retcode = SYN_ANALYZER_PARSE_ERROR; 
-                }
-                else
-                {
-                    update_parse_tree(sya);
-                }
-            }
+            retcode = syntax_check_production(sya, "c", title_end); 
         }
     }
-    else
+    else if (retcode == SYN_ANALYZER_PARSE_ERROR)
     {
-        retcode = SYN_ANALYZER_PARSE_ERROR;
+        retcode = SYN_ANALYZER_PARSE_SUCCESS;
     }
-
+    
     return retcode;
 }
 
@@ -337,53 +410,50 @@ static void SYN_free_parse_tree(syntax_analyzer_t *sya)
 
 int SYN_check_syntax(syntax_analyzer_t *sya)
 {
-    int retval = SYN_ANALYZER_PARSE_ERROR;
-    char *tmp = get_token(sya);
+    const char *doc_start = LEXEME_DOC_STRINGS[LEXEME_DOCB_IDX].str;
+    const char *doc_end = LEXEME_DOC_STRINGS[LEXEME_DOCE_IDX].str;
+    char *current_token = NULL;
+    int retval;
+    
+    retval = syntax_check_str(sya, doc_start);
 
-    if (tmp)
+    if (retval == SYN_ANALYZER_PARSE_SUCCESS)
     {
-        if (strncasecmp(tmp, LEXEME_DOC_STRINGS[LEXEME_DOCB_IDX].str, strlen(tmp)) == 0)
+        // Check syntax of any global variables
+        //retval = var_define(sya);
+        //
+        //if (retval == SYN_ANALYZER_PARSE_SUCCESS)
+        //{
+            // Check for <head> and or <body> productions
+            retval = head(sya);
+        //}
+       
+        // Move onto <body> DOCE
+        if (retval == SYN_ANALYZER_PARSE_SUCCESS)
         {
-            update_parse_tree(sya);
-            
-            // Check syntax of any global variables
-            retval = var_define(sya);
-            if (retval == SYN_ANALYZER_PARSE_SUCCESS)
+            // Check for DOCE
+            retval = syntax_check_str(sya, doc_end);
+            if (retval != SYN_ANALYZER_PARSE_SUCCESS)
             {
-                // Check for <head> and or <body> productions
-                retval = head(sya);
-            }
-            
-            if (retval == SYN_ANALYZER_PARSE_SUCCESS)
-            {
-                // Check for DOCE
-                if ((tmp = get_token(sya)) && (strncasecmp(tmp, LEXEME_DOC_STRINGS[LEXEME_DOCE_IDX].str, strlen(tmp)) == 0))
-                {
-                    update_parse_tree(sya);
-                }
-                else
-                {
-                    retval = SYN_ANALYZER_PARSE_ERROR;
-                    fprintf(stderr, "Error: Syntax error. Expected: %s Found: %s\n", LEXEME_DOC_STRINGS[LEXEME_DOCE_IDX].str, tmp);
-                }
-            }
-            else
-            {
-                fprintf(stderr, "Error: Syntax error invalid <var-defie> | <head> | <title>.\nCurrent unexpected token found is: %s\n", tmp = get_token(sya));
+                current_token = get_token(sya);
+                fprintf(stderr, "Error: Syntax error. Expected: %s Found: %s\n", doc_end, current_token);
             }
         }
         else
         {
-            fprintf(stderr, "Error: Syntax error. Expected: %s Found: %s\n", LEXEME_DOC_STRINGS[LEXEME_DOCB_IDX].str, tmp);
+            current_token = get_token(sya);
+            fprintf(stderr, "Error: Syntax error invalid <var-define> | <head> | <title>.\nCurrent unexpected token found is: %s\n", current_token);
         }
     }
-    else 
+    else
     {
-        fprintf(stderr, "Error: compile failed no token to check\n");
+        current_token = get_token(sya);
+        fprintf(stderr, "Error: Syntax error. Expected: %s Found: %s\n", doc_start, current_token);
     }
     
     if (retval != SYN_ANALYZER_PARSE_SUCCESS)
     {
+        // We do not want a broken parse tree being accessed outside of this obj file. So we destroy the parse tree.
         SYN_free_parse_tree(sya);
     }
 

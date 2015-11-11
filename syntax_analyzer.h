@@ -3,6 +3,7 @@
 
 #define SYN_ANALYZER_PARSE_SUCCESS 3 
 #define SYN_ANALYZER_PARSE_ERROR 4 
+#define SYN_ANALYZER_EMPTY_TOKEN 5
 
 #include "lexical_analyzer.h"
 #include "include/ds/queue.h"
