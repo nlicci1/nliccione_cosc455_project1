@@ -303,6 +303,212 @@ static int var_define(syntax_analyzer_t *sya)
     return retcode;
 }
 
+// This function implements the optional production variable define as:
+// <variable-use> ::= USEB TEXT DEFUSEE | ε
+static int var_use(syntax_analyzer_t *sya)
+{
+    if (!sya)
+    {
+        return SYN_ANALYZER_PARSE_ERROR;
+    }
+    
+    const char *var_start_use = LEXEME_VAR_STRINGS[LEXEME_USEB_IDX].str;
+    const char *var_end_use = LEXEME_VAR_STRINGS[LEXEME_DEFUSEE_IDX].str;
+    int retcode;
+    
+    // Check for our first terminal symbol
+    // If its there than we keep trucking on thru
+    // the BNF train.
+    // If is not present this an optional symbol return
+    // success 
+    retcode = syntax_check_str(sya, var_start_use); 
+    
+    if (retcode == SYN_ANALYZER_PARSE_SUCCESS)
+    {
+        retcode = syntax_check_production(sya, "Ts", NULL, var_end_use);
+    }
+    else if (retcode == SYN_ANALYZER_PARSE_ERROR)
+    {
+        retcode = SYN_ANALYZER_PARSE_SUCCESS;
+    }
+
+    return retcode;
+}
+
+// This function implements the optional production variable define as:
+// <bold> ::= BOLD TEXT BOLD | ε
+static int bold(syntax_analyzer_t *sya)
+{
+    if (!sya)
+    {
+        return SYN_ANALYZER_PARSE_ERROR;
+    }
+    
+    const char *bold_terminal = "**";
+    int retcode;
+    
+    // Check for our first terminal symbol
+    // If its there than we keep trucking on thru
+    // the BNF train.
+    // If is not present this an optional symbol return
+    // success 
+    retcode = syntax_check_str(sya, bold_terminal); 
+    
+    if (retcode == SYN_ANALYZER_PARSE_SUCCESS)
+    {
+        retcode = syntax_check_production(sya, "Ts", NULL, bold_terminal);
+    }
+    else if (retcode == SYN_ANALYZER_PARSE_ERROR)
+    {
+        retcode = SYN_ANALYZER_PARSE_SUCCESS;
+    }
+
+    return retcode;
+}
+
+// This function implements the optional production variable define as:
+// <italics> ::= ITALICS TEXT ITALICS | ε
+static int italics(syntax_analyzer_t *sya)
+{
+    if (!sya)
+    {
+        return SYN_ANALYZER_PARSE_ERROR;
+    }
+
+    lexeme_chars_t italics_terminal = ITALICS;
+    int retcode;
+    
+    // Check for our first terminal symbol
+    // If its there than we keep trucking on thru
+    // the BNF train.
+    // If is not present this an optional symbol return
+    // success 
+    retcode = syntax_check_char(sya, italics_terminal); 
+    
+    if (retcode == SYN_ANALYZER_PARSE_SUCCESS)
+    {
+        retcode = syntax_check_production(sya, "Ts", NULL, italics_terminal);
+    }
+    else if (retcode == SYN_ANALYZER_PARSE_ERROR)
+    {
+        retcode = SYN_ANALYZER_PARSE_SUCCESS;
+    }
+
+    return retcode;
+}
+
+// This function implements the production rule head defined as:
+// <url> ::= ADDRESSB TEXT ADDRESSE
+static int url(syntax_analyzer_t *sya)
+{
+    if (!sya)
+    {
+        return SYN_ANALYZER_PARSE_ERROR;
+    }
+    
+    lexeme_chars_t addr_start = ADDRESSB;
+    lexeme_chars_t addr_end = ADDRESSE;
+    
+    return syntax_check_production(sya, "cTc", addr_start, NULL, addr_end);
+}
+
+// <link> ::= LINKB TEXT LINKE ADDRESSB TEXT ADDRESSE | ε
+static int link(syntax_analyzer_t *sya)
+{   
+    if (!sya)
+    {
+        return SYN_ANALYZER_PARSE_ERROR;
+    }
+    
+    lexeme_chars_t link_start = LINKB;
+    lexeme_chars_t link_end = LINKE;
+    int retcode;
+
+    // Check for our first terminal symbol
+    // If its there than we keep trucking on thru
+    // the BNF train.
+    // If is not present this an optional symbol return
+    // success 
+    retcode = syntax_check_char(sya, link_start); 
+    
+    if (retcode == SYN_ANALYZER_PARSE_SUCCESS)
+    {
+        retcode = syntax_check_production(sya, "Tc", NULL, link_end); 
+
+        if (retcode == SYN_ANALYZER_PARSE_SUCCESS)
+        {
+            retcode = url(sya);          
+        }
+    }
+    else if (retcode == SYN_ANALYZER_PARSE_ERROR)
+    {
+        retcode = SYN_ANALYZER_PARSE_SUCCESS;
+    }
+    
+    return retcode;
+
+}
+
+// <audio> ::= AUDIO ADDRESSB TEXT ADDRESSE | ε
+static int audio(syntax_analyzer_t *sya)
+{   
+    if (!sya)
+    {
+        return SYN_ANALYZER_PARSE_ERROR;
+    }
+    
+    lexeme_chars_t audio_start = AUDIO;
+    int retcode;
+
+    // Check for our first terminal symbol
+    // If its there than we keep trucking on thru
+    // the BNF train.
+    // If is not present this an optional symbol return
+    // success 
+    retcode = syntax_check_char(sya, audio_start); 
+    
+    if (retcode == SYN_ANALYZER_PARSE_SUCCESS)
+    {
+        retcode = url(sya);          
+    }
+    else if (retcode == SYN_ANALYZER_PARSE_ERROR)
+    {
+        retcode = SYN_ANALYZER_PARSE_SUCCESS;
+    }
+    
+    return retcode;
+}
+
+// <video> ::= VIDEO ADDRESSB TEXT ADDRESSE | ε
+static int video(syntax_analyzer_t *sya)
+{   
+    if (!sya)
+    {
+        return SYN_ANALYZER_PARSE_ERROR;
+    }
+    
+    lexeme_chars_t video_start = VIDEO;
+    int retcode;
+
+    // Check for our first terminal symbol
+    // If its there than we keep trucking on thru
+    // the BNF train.
+    // If is not present this an optional symbol return
+    // success 
+    retcode = syntax_check_char(sya, video_start); 
+    
+    if (retcode == SYN_ANALYZER_PARSE_SUCCESS)
+    {
+        retcode = url(sya);          
+    }
+    else if (retcode == SYN_ANALYZER_PARSE_ERROR)
+    {
+        retcode = SYN_ANALYZER_PARSE_SUCCESS;
+    }
+    
+    return retcode;
+}
+
 // This function implements the production rule head defined as:
 // TITLEB TEXT TITLEE | ε
 static int title(syntax_analyzer_t *sya)
@@ -369,6 +575,57 @@ static int head(syntax_analyzer_t *sya)
         retcode = SYN_ANALYZER_PARSE_SUCCESS;
     }
     
+    return retcode;
+}
+
+// define inner item here
+//
+
+static int inner_item(syntax_analyzer_t *sya)
+{
+    if (!sya)
+    {
+        return SYN_ANALYZER_PARSE_ERROR;
+    }
+    
+    int retcode;
+    
+    return 0;
+
+}
+
+// <listitem> ::= LISTITEMB <inner-item> LISTITEME <list-item> | ε 
+static int list_item(syntax_analyzer_t *sya)
+{
+    if (!sya)
+    {
+        return SYN_ANALYZER_PARSE_ERROR;
+    }
+    
+    lexeme_chars_t list_item_start = LISTITEMB;
+    lexeme_chars_t list_item_end = LISTITEME;
+    int retcode;
+    
+    // Check for our first terminal symbol
+    // If its there than we keep trucking on thru
+    // the BNF train.
+    // If is not present this an optional symbol return
+    // success 
+    retcode = syntax_check_char(sya, list_item_start); 
+    
+    if (retcode == SYN_ANALYZER_PARSE_SUCCESS)
+    {
+        // Call inner item func here
+        if (retcode == SYN_ANALYZER_PARSE_SUCCESS)
+        {
+            retcode = list_item(sya);
+        }
+    }
+    else if (retcode == SYN_ANALYZER_PARSE_ERROR)
+    {
+        retcode = SYN_ANALYZER_PARSE_SUCCESS;
+    }
+
     return retcode;
 }
 
