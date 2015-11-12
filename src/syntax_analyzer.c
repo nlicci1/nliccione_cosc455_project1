@@ -814,26 +814,6 @@ static int body(syntax_analyzer_t *sya)
     return retcode;
 }
 
-void SYN_print_parse_tree(syntax_analyzer_t *sya)
-{
-    if (sya)
-    {
-        char *tmp = malloc(sizeof (char *));
-    
-        if (sya->parse_tree)
-        {
-            while (sya->parse_tree->list->head != NULL)
-            {
-                queue_dequeue(sya->parse_tree, tmp);
-                printf("|%s|\n", *(char **) tmp);
-                free(* (char **)tmp);
-            }
-        }
-
-        free(tmp);
-    }
-}
-
 static void SYN_free_parse_tree(syntax_analyzer_t *sya)
 {
     if (sya)

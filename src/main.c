@@ -37,7 +37,6 @@ int main(int argc, char **argv)
     // Begin semantics
     if (sya->parse_tree)
     {
-        SYN_print_parse_tree(sya);
     }
     
     SYN_free(&sya);
