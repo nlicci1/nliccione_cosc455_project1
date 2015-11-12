@@ -900,7 +900,6 @@ int SYN_check_syntax(syntax_analyzer_t *sya)
         fprintf(stderr, "Error: Syntax error. Expected: %s Found: %s\n", doc_start, current_token);
     }
    
-    //SYN_print_parse_tree(sya);
     if (retval != SYN_ANALYZER_PARSE_SUCCESS)
     {
         // We do not want a broken parse tree being accessed outside of this obj file. 

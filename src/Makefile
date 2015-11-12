@@ -3,8 +3,9 @@ CFLAGS = -g -Wall
 OBJECTS = main.o \
 lexemes.o \
 lexical_analyzer.o  \
-syntax_analyzer.o 
-INCLUDE = -I ../include/compiler/
+syntax_analyzer.o \
+hash.o
+INCLUDE = -I ../include/ds/ -I ../include/compiler/
 LIBS = -L ../lib
 
 all : markdown_compiler
@@ -23,6 +24,9 @@ lexical_analyzer.o : lexical_analyzer.c ../include/compiler/lexical_analyzer.h .
 
 syntax_analyzer.o : syntax_analyzer.c ../include/compiler/syntax_analyzer.h ../include/compiler/lexical_analyzer.h ../include/compiler/lexemes.h ../include/compiler/main.h
 	$(CC) $(CFLAGS) $(INCLUDE) -c syntax_analyzer.c
+
+hash.o : hash.c ../include/ds/hash.h
+	$(CC) $(CFLAGS) $(INCLUDE) -c hash.c
 
 clean :
 	rm -f *.o markdown_compiler

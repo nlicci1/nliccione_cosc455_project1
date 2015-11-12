@@ -32,8 +32,13 @@ int main(int argc, char **argv)
     
     // kick off syntax checker function call thingy here
     SYN_check_syntax(sya);
-    // Print our parse tree out
-    SYN_print_parse_tree(sya);
+    
+    // If we have a parse tree 
+    // Begin semantics
+    if (sya->parse_tree)
+    {
+        SYN_print_parse_tree(sya);
+    }
     
     SYN_free(&sya);
     LA_free(&lexer);
