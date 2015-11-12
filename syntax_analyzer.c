@@ -387,7 +387,7 @@ static int italics(syntax_analyzer_t *sya)
     
     if (retcode == SYN_ANALYZER_PARSE_SUCCESS)
     {
-        retcode = syntax_check_production(sya, "Ts", NULL, italics_terminal);
+        retcode = syntax_check_production(sya, "Tc", NULL, italics_terminal);
     }
     else if (retcode == SYN_ANALYZER_PARSE_ERROR)
     {
@@ -707,15 +707,11 @@ static int inner_text(syntax_analyzer_t *sya)
     {
         retcode = syntax_check_plain_text(sya);
         
-        if (retcode == SYN_ANALYZER_PARSE_ERROR)
+        if (retcode == SYN_ANALYZER_PARSE_SUCCESS)
         {
-            retcode = SYN_ANALYZER_PARSE_OPT_SUCCESS;
+            retcode = inner_text(sya);
         }
-        else if (retcode == SYN_ANALYZER_PARSE_SUCCESS)
-        {
-            retcode = inner_item(sya);
-        }
-        else if (retcode == SYN_ANALYZER_PARSE_OPT_SUCCESS)
+        else if (retcode == SYN_ANALYZER_PARSE_ERROR)
         {
             retcode = syntax_check_char(sya, NEWLINE);
 
@@ -725,7 +721,7 @@ static int inner_text(syntax_analyzer_t *sya)
             }
             else if (retcode == SYN_ANALYZER_PARSE_SUCCESS)
             {
-                retcode = inner_item(sya);
+                retcode = inner_text(sya);
             }
         }
     }
@@ -872,9 +868,8 @@ int SYN_check_syntax(syntax_analyzer_t *sya)
         }
        
         // Move onto <body> DOCE
-        if (retval == SYN_ANALYZER_PARSE_SUCCESS)
+        if (retval == SYN_ANALYZER_PARSE_SUCCESS || retval == SYN_ANALYZER_PARSE_OPT_SUCCESS)
         {
-
             retval = body(sya);
 
             if (retval == SYN_ANALYZER_PARSE_SUCCESS)
@@ -904,7 +899,8 @@ int SYN_check_syntax(syntax_analyzer_t *sya)
         current_token = get_token(sya);
         fprintf(stderr, "Error: Syntax error. Expected: %s Found: %s\n", doc_start, current_token);
     }
-    
+   
+    //SYN_print_parse_tree(sya);
     if (retval != SYN_ANALYZER_PARSE_SUCCESS)
     {
         // We do not want a broken parse tree being accessed outside of this obj file. 
