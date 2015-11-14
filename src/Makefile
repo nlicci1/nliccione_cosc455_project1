@@ -4,6 +4,7 @@ OBJECTS = main.o \
 lexemes.o \
 lexical_analyzer.o  \
 syntax_analyzer.o \
+file_manager.o \
 hash.o
 INCLUDE = -I ../include/ds/ -I ../include/compiler/
 LIBS = -L ../lib
@@ -18,6 +19,9 @@ main.o : main.c ../include/compiler/lexical_analyzer.h ../include/compiler/synta
 
 lexemes.o : lexemes.c ../include/compiler/lexemes.h
 	$(CC) $(CFLAGS) $(INCLUDE) -c lexemes.c
+
+file_manager.o : file_manager.c ../include/compiler/file_manager.h
+	$(CC) $(CFLAGS) $(INCLUDE) -c file_manager.c
 
 lexical_analyzer.o : lexical_analyzer.c ../include/compiler/lexical_analyzer.h ../include/compiler/lexemes.h ../include/compiler/main.h
 	$(CC) $(CFLAGS) $(INCLUDE) -c lexical_analyzer.c

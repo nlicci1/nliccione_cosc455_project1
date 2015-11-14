@@ -259,14 +259,14 @@ static int get_token(FILE *source_file, char *token_buffer, unsigned int blen)
 
 int LA_get_token(lexical_analyzer_t *lexer, char **current_token)
 {
-    if (!lexer->source_file_stream || !lexer->source_file_location || !lexer->current_token)
+    if (!lexer->fstream || !lexer->file_name || !lexer->buffer)
     {
         return LA_PARSE_ERROR; 
     }
     
     int retval;
-    FILE *source_file = lexer->source_file_stream;
-    char *token_buffer = lexer->current_token;
+    FILE *source_file = lexer->fstream;
+    char *token_buffer = lexer->buffer;
     *current_token = token_buffer;
 
     memset(token_buffer, '\0', LA_MAX_TOKEN_SIZE);
@@ -281,100 +281,33 @@ int LA_get_token(lexical_analyzer_t *lexer, char **current_token)
     return retval;
 }
 
-lexical_analyzer_t *LA_create_new(lexical_analyzer_t **lexer, char *source_file_loc)
+lexical_analyzer_t *LA_create_new(lexical_analyzer_t **lexer, const char *source_file_location)
 {
-    if (!lexer || !source_file_loc || strlen(source_file_loc) < 1)
+    if (!lexer || !source_file_location)
     {
         return NULL;
     }
     
-    size_t file_loc_len = strlen(source_file_loc); 
-    lexical_analyzer_t *retval = NULL;
-    *lexer = (lexical_analyzer_t *) malloc(sizeof(**lexer));
-    retval = *lexer;
-
-    if (retval)
+    if (FM_create_new((file_manager_t **) lexer, source_file_location, "r"))
     {
-        retval->source_file_stream = NULL;
-        retval->source_file_location = NULL;
-        retval->current_token = NULL;
-        retval->token_len = 0;
-        
-        retval->source_file_stream = fopen(source_file_loc, "r"); 
-        if (!retval->source_file_stream) 
-        {
-            fprintf(stderr, "Error: Unable to open file %s\n", source_file_loc);
-            goto fopen_failed;
-        }
-
-        retval->source_file_location = (char *) malloc(file_loc_len + 1);
-        if (!retval->source_file_location)
-        {
-            fprintf(stderr, "Error: Unable to allocate memory for the str %s\n", source_file_loc);
-            goto malloc_file_loc_fail;
-        }
-        
-        memset(retval->source_file_location, '\0', file_loc_len + 1);
-        strncpy(retval->source_file_location, source_file_loc, file_loc_len); 
-        
-        retval->current_token = (char *) malloc(LA_MAX_TOKEN_SIZE);
-        if (!retval->current_token)
-        {
-            fprintf(stderr, "Error: Unable to allocate memory for the str %s\n", source_file_loc);
-            goto malloc_token_str_fail;
-        }
-
-        memset(retval->current_token, '\0', LA_MAX_TOKEN_SIZE);
+        return *lexer;
     }
     else
     {
-        fprintf(stderr, "Error: Malloc failed in LA_create_new\n");
+        return NULL;
     }
+} 
 
-    return retval;
-
-// Some error occured free memory accordingly 
-malloc_token_str_fail:
-    free(retval->source_file_location);
-malloc_file_loc_fail:
-    fclose(retval->source_file_stream);
-fopen_failed:
-    free(retval);
-    retval = NULL;
-    return retval;
-}
-
-void LA_free(lexical_analyzer_t **lexer_analyzer)
+void LA_free(lexical_analyzer_t **lexer)
 {
-    lexical_analyzer_t *lexer = *lexer_analyzer;
-
     if (lexer)
     {
-        lexer = *lexer_analyzer;
-
-        if (lexer->source_file_location)
-        {
-            free(lexer->source_file_location);
-            lexer->source_file_location = NULL;
-        }
-        
-        if (lexer->current_token)
-        {
-            free(lexer->current_token);
-            lexer->current_token = NULL;
-        }
-
-        if (lexer->source_file_stream)
-        {
-            fclose(lexer->source_file_stream);
-            lexer->source_file_stream = NULL;
-        }
-
-        free(lexer);
-        lexer = NULL;
-        *lexer_analyzer = lexer;
+        FM_free((file_manager_t **) lexer);
     }
 }
+
+
+
 
 
 
