@@ -58,24 +58,20 @@ struct lexeme_to_html_translation_entry lexeme_compile_lookup_table[] =
     { { LISTITEMB, "+" }, sem_compile_lexeme_ez, "<li>" },
     { { LISTITEME, ";" }, sem_compile_lexeme_ez, "</li>" },
     { { NEWLINE, "~" }, sem_compile_lexeme_ez, "<br>" },
+    { { LINKE, "]" }, sem_compile_lexeme_ez, "</a>" }, 
     // The %s will be used to easily place the URL inside the link
     { { LINKB, "[" }, NULL, "<a href=\"%s\">" },
-    { { LINKE, "]" }, NULL, "</a>" }, 
-    // The %s will be used to easily place the URL inside the link
     { { AUDIO, "@" }, NULL, "<audio controls> <source src=\"%s\"> </audio>" },
     { { VIDEO, "%" }, NULL, "<iframe src=\"%s\">" },
     { { VAR_LEXEME, "$def" }, NULL, NULL },
     { { VAR_LEXEME, "$use" }, NULL, NULL },
     { { HEAD, "^" }, NULL, "<head>" },
-    { { EQSIGN, "=" }, NULL, NULL },
     { { ITALICS, "*" }, NULL,  "<i>" },
     { { BOLD, "**" }, NULL, "<b>" },
     // There is no special function for handling these symbols
-    // They should be removed and the address stripped in any 
-    // resource locator type hanlder function. 
-    // For e.g VIDEO should handle all of this: %( ... )
-    { { ADDRESSB, "(" }, NULL, NULL },
-    { { ADDRESSE, ")" }, NULL, NULL }
+    //{ { ADDRESSB, "(" }, NULL, NULL },
+    //{ { ADDRESSE, ")" }, NULL, NULL }
+    //{ { EQSIGN, "=" }, NULL, NULL },
 };
 
 int SEM_compile(sem_t *sema)
@@ -112,7 +108,7 @@ int SEM_compile(sem_t *sema)
             {
                 str_tolower(current_lexeme, strlen(current_lexeme));
                  
-                entry = (struct lexeme_to_html_translation_entry *) ht_find(lexeme_lookup_tb, current_lexeme); 
+                entry = (struct lexeme_to_html_translation_entry **) ht_find(lexeme_lookup_tb, current_lexeme); 
                 
                 /*
                 // Update our current scope level as needed
@@ -197,7 +193,6 @@ void SEM_create_new(sem_t *sem, queue *parse_tree, char *html_file_name)
         init_lookup_table((hashtable_t **) &sem->lexeme_lookup_table); 
         
         sem->compiled_parse_tree = malloc(sizeof(sem->compiled_parse_tree));
-        memset(sem->compiled_parse_tree, 0, sizeof(sem->compiled_parse_tree));
         remove(html_file_name);
         FM_create_new(&sem->file_operator, html_file_name, "w");
         queue_new(sem->compiled_parse_tree, sizeof(char *), parse_tree_entry_element_free);
