@@ -114,6 +114,47 @@ static int sem_compile_resource_locators(sem_t *semantic_analyzer, const char *c
     }
 }
 
+// [ txt ] ( txt )
+// { { LINKB, "[" }, sem_compile_link, "<a href=\"%s\">%s</a>" },
+static int sem_compile_link(sem_t *semantic_analyzer, const char *compiled_lexeme_format, char *markdown_lexeme)
+{
+    queue *parse_tree = NULL;
+    char *compiled_lexeme = NULL;
+    char *current_lexeme = NULL;
+    char *link_name = NULL;
+    char *url = NULL;
+    size_t new_comp_strlen;
+    
+    parse_tree = semantic_analyzer->markdown_parse_tree; 
+    
+    // Get link name
+    queue_dequeue(parse_tree, &current_lexeme);
+    link_name = current_lexeme;
+    new_comp_strlen  = strlen(link_name);
+
+    // Get ending ']' tag and free the memory for that string
+    queue_dequeue(parse_tree, &current_lexeme);
+    free(current_lexeme);
+    
+    // Get URL string
+    url = sem_get_content_from_ptree(parse_tree);
+    new_comp_strlen += strlen(url) + strlen(compiled_lexeme_format) + 1;
+    
+    if ((compiled_lexeme = malloc(new_comp_strlen)))
+    {
+        memset(compiled_lexeme, '\0', new_comp_strlen);
+        snprintf(compiled_lexeme, new_comp_strlen - 1, compiled_lexeme_format, url, link_name); 
+        queue_enqueue(semantic_analyzer->compiled_parse_tree, &compiled_lexeme);
+        
+        free(url);
+        free(link_name);
+
+        return SEM_SUCCESS;
+    }
+
+    return SEM_FAILURE;
+}
+
 static int sem_compile_head(sem_t *semantic_analyzer, const char *compiled_lexeme, char *markdown_lexeme)
 {
     struct lexeme_to_html_translation_entry **entry = NULL;
@@ -185,7 +226,7 @@ struct lexeme_to_html_translation_entry lexeme_compile_lookup_table[] =
     { { LISTITEME, ";" }, sem_compile_lexeme_ez, "</li>" },
     { { NEWLINE, "~" }, sem_compile_lexeme_ez, "<br>" },
     // The %s will be used to easily place the URL inside the link
-    { { LINKB, "[" }, NULL, "<a href=\"%s\">%s</a>" },
+    { { LINKB, "[" }, sem_compile_link, "<a href=\"%s\">%s</a>" },
     { { AUDIO, "@" }, sem_compile_resource_locators, "<audio controls> <source src=\"%s\"> </audio>" },
     { { VIDEO, "%" }, sem_compile_resource_locators, "<iframe src=\"%s\"/></iframe>" },
     { { VAR_LEXEME, "$def" }, NULL, NULL },
@@ -211,7 +252,7 @@ int SEM_compile(sem_t *sema)
     queue *parse_tree = NULL;
     hashtable_t *lexeme_lookup_tb = NULL;
     char *current_lexeme = NULL;
-    unsigned int *var_scope_level = &sema->variable_scope_level;
+    //unsigned int *var_scope_level = &sema->variable_scope_level;
     int retval = SEM_SUCCESS;
     
     lexeme_lookup_tb = (hashtable_t *) sema->lexeme_lookup_table;
@@ -258,7 +299,7 @@ int SEM_compile(sem_t *sema)
                 }
                 else
                 {
-                    printf("Func for %s not defined\n", current_lexeme);
+                    //printf("Func for %s not defined\n", current_lexeme);
                     queue_enqueue(sema->compiled_parse_tree, &current_lexeme);
                 }
             }
@@ -304,9 +345,6 @@ static void compiled_parse_tree_entry_element_free(void *ele)
 
 void SEM_create_new(sem_t *sem, queue *parse_tree, char *html_file_name)
 {
-    hashtable_t *lexeme_lookup_tb = NULL;
-    hashtable_t *var_resolution_table = NULL;
-
     if (sem && html_file_name)
     {
         sem->markdown_parse_tree = parse_tree;
