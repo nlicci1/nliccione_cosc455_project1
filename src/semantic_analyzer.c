@@ -205,6 +205,40 @@ static int sem_compile_head(sem_t *semantic_analyzer, const char *compiled_lexem
     return SEM_SUCCESS;
 }
 
+// Compiles the following productions: ITALICS and BOLD 
+static int sem_compile_text_style(sem_t *semantic_analyzer, const char *compiled_lexeme, char *markdown_lexeme)
+{
+    queue *parse_tree = NULL;
+    char *compiled_lexeme_start = NULL;
+    char *compiled_lexeme_end = NULL;
+    char *current_lexeme = NULL;
+    
+    parse_tree = semantic_analyzer->markdown_parse_tree; 
+
+    // Allocate new memory for the end tag
+    compiled_lexeme_end = malloc(strlen(compiled_lexeme) + 2);
+    memset(compiled_lexeme_end, '\0', strlen(compiled_lexeme) + 2);
+    // I dont have an insert_at string function so...
+    compiled_lexeme_end[0] = compiled_lexeme[0];
+    compiled_lexeme_end[1] = '/';
+    strncpy(compiled_lexeme_end + 2, compiled_lexeme + 1, strlen(compiled_lexeme) - 1);
+
+    // Create a new copy of compiled_lexeme and add it to complied parse tree
+    compiled_lexeme_start = strdup(compiled_lexeme);
+    queue_enqueue(semantic_analyzer->compiled_parse_tree, &compiled_lexeme_start);
+
+    // Get text
+    queue_dequeue(parse_tree, &current_lexeme);
+    queue_enqueue(semantic_analyzer->compiled_parse_tree, &current_lexeme);
+
+    // Get next lexeme. Either * or ** and compile it
+    queue_dequeue(parse_tree, &current_lexeme);
+    free(current_lexeme);
+    queue_enqueue(semantic_analyzer->compiled_parse_tree, &compiled_lexeme_end);
+
+    return SEM_SUCCESS;
+}
+
 // This structre and array holds the neccessary information and
 // routines to compile the current lexeme token. 
 #define SEM_LEXEME_COMPILE_SYMBOL_ARRAY_SIZE  21
@@ -232,8 +266,8 @@ struct lexeme_to_html_translation_entry lexeme_compile_lookup_table[] =
     { { VAR_LEXEME, "$def" }, NULL, NULL },
     { { VAR_LEXEME, "$use" }, NULL, NULL },
     { { HEAD, "^" }, sem_compile_head, "<head>" },
-    { { ITALICS, "*" }, NULL,  "<i>" },
-    { { BOLD, "**" }, NULL, "<b>" },
+    { { ITALICS, "*" }, sem_compile_text_style,  "<i>" },
+    { { BOLD, "**" }, sem_compile_text_style, "<b>" },
     // There is no special function for handling these symbols
     //{ { ADDRESSB, "(" }, NULL, NULL },
     //{ { ADDRESSE, ")" }, NULL, NULL }
