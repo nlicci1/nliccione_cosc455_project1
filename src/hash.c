@@ -25,19 +25,28 @@ typedef struct entry_s
 } entry_t;
 
 /* Hash a string for a particular hash table. */
-static int ht_hash( hashtable_t *hashtable, char *key ) {
-
-	unsigned long int hashval = 0;
+static unsigned int ht_hash( hashtable_t *hashtable, char *key ) 
+{
+    size_t len = strlen(key);
+	unsigned int hash = 0;
 	int i = 0;
 
 	/* Convert our string to an integer */
-	while( hashval < ULONG_MAX && i < strlen( key ) ) {
-		hashval = hashval << 8;
-		hashval += key[ i ];
-		i++;
-	}
 
-	return hashval % hashtable->size;
+    // Jenkins hash algoritm from
+    // https://en.wikipedia.org/wiki/Jenkins_hash_function
+    for(hash = i = 0; i < len; ++i)
+    {
+        hash += key[i];
+        hash += (hash << 10);
+        hash ^= (hash >> 6);
+    }
+
+    hash += (hash << 3);
+    hash ^= (hash >> 11);
+    hash += (hash << 15);
+
+	return hash % hashtable->size;
 }
 
 /* Create a key-value pair. */
@@ -67,7 +76,7 @@ static entry_t *ht_newpair( char *key, void *value, int value_size) {
 
 /* Insert a key-value pair into a hash table. */
 void ht_insert( hashtable_t *hashtable, char *key, void *value ) {
-	int bin = 0;
+	unsigned int bin = 0;
 	entry_t *newpair = NULL;
 	entry_t *next = NULL;
 	entry_t *last = NULL;
@@ -118,7 +127,7 @@ void ht_insert( hashtable_t *hashtable, char *key, void *value ) {
 /* Retrieve a key-value pair from a hash table. */
 void *ht_find( hashtable_t *hashtable, char *key ) 
 {
-	int bin = 0;
+	unsigned int bin = 0;
 	entry_t *pair;
 
 	bin = ht_hash( hashtable, key );
@@ -200,6 +209,8 @@ static void ht_entry_free(entry_t *bucket, freeFunction free_table_entry_data_cb
             
             current = current->next;
         }
+
+        free(bucket);
     }
 }
 
@@ -217,10 +228,9 @@ void ht_free(hashtable_t *tb)
                 // Free the entry stored at the table
                 // then free the pointer in the table
                 ht_entry_free(tb->table[i], tb->free_table_entry_data_cb);
-                free(tb->table[i]);
             }
         }
-        
+
         free(tb);
     }
 }

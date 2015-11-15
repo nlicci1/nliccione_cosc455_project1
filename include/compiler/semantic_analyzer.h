@@ -6,6 +6,10 @@
 #include "list.h"
 #include "queue.h"
 
+#define SEM_SUCCESS 7
+#define SEM_FAILURE 8
+#define SEM_VARIABLE_UNDEFINED_ERROR 9
+
 // This is used to maintain a reference to a structure that holds the:
 // open compiled file,
 // holds the file path of the open file,
@@ -39,16 +43,16 @@ typedef struct
 
 // Definition for a callback function that will handle
 // a grammar rule. this means it will translate the token
-// into HTML and all of the syntatic componets that 
-// make up the production.
-typedef void (* compile_production_cb) (sem_t *, char *);
+// into HTML.
+typedef int (* compile_production_cb) (sem_t *, const char *, char *);
 
 // This function will check the semantics of the parse tree by resolving variables
 // and writing the contents from the compiled parse tree to the document
 // Returns:
-//  0 - SUCCESS
-//  1 - FAILURE
-extern int SEM_check_semantics(sem_t *);
+//  SEM_SUCCESS - An html file was created
+//  SEM_FAILURE - General failure
+//  SEM_VARIABLE_UNDEFINED_ERROR - A variable was used but never defined
+extern int SEM_compile(sem_t *);
 extern void SEM_create_new(sem_t *sem, queue *parse_tree, char *html_file_name);
 extern void SEM_free(sem_t *);
 

@@ -3,6 +3,8 @@
 
 #include "main.h"
 
+#define BOLD 0
+
 typedef enum
 {
     DOC_LEXEME = '#',

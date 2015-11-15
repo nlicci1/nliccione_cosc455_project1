@@ -28,9 +28,10 @@ static int is_whitespace(char *str)
     return TRUE;
 }
 
-// Adds current_token element into the parse tree (the queue)
-// This function sets the pointer to the element to null so it can be reused
-// when get_token is called again
+// Adds current_token element into the parse tree (the queue).
+// This function sets the pointer (this is 100% required for syntax analyzer to work 
+// properly) to the 'current string' to null becuase it was just processed by the syntax analyzer and
+// so it can be used again to point to the next token to be processed. 
 static void update_parse_tree(syntax_analyzer_t *sya)
 {
     if (sya)

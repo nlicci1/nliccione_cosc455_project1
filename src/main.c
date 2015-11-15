@@ -40,8 +40,13 @@ int main(int argc, char **argv)
     if (sya->parse_tree)
     {
         print_queue(sya->parse_tree);
+        printf("\n\n\n\n\n\n\n\n\n");
 
         SEM_create_new(&sem, sya->parse_tree, "output.html");
+        SEM_compile(&sem);
+
+        print_queue(sem.compiled_parse_tree);
+
         SEM_free(&sem);
 
     }
@@ -92,7 +97,14 @@ int str_ends_with(char *str, char *suffix)
 
 static bool print_list_item(void *item)
 {
-    printf("|%s|\n", *(char **) item);
+    if (item)
+    {
+        printf("|%s|\n", *(char **) item);
+    }
+    else
+    {
+        printf("|NULL|\n");
+    }
 
     return TRUE;
 }
@@ -102,6 +114,19 @@ void print_queue(queue *q)
     if (q->list)
     {
         list_for_each(q->list, print_list_item);
+    }
+}
+
+void str_tolower(char *str, size_t len)
+{
+    int i;
+
+    if (str && len > 0)
+    {
+        for (i = 0; i < len; i++)
+        {
+            str[i] = tolower(str[i]);
+        }
     }
 }
 
