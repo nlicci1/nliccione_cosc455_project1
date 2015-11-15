@@ -17,6 +17,37 @@ struct lexeme_to_html_translation_entry
     const char *first_func_arg;
 };
 
+// This function is a simple helper function for LINK
+// This skips over the next symbol frees the memory allocated for it,
+// gets the next symbol (this will be the retval) and then
+// gets 1 more symbol from the parse_tree and frees the memory for it.
+static char *sem_get_content_from_ptree(queue *parse_tree)
+{
+    char *retval = NULL;
+    char *tmp = NULL;
+
+    queue_dequeue(parse_tree, &tmp);
+
+    if (tmp)
+    {
+        free(tmp);
+        queue_dequeue(parse_tree, &tmp);
+        
+        if (tmp)
+        {
+            retval = tmp;
+            queue_dequeue(parse_tree, &tmp);
+            
+            if (tmp)
+            {
+                free(tmp);
+            }
+        }
+    }
+
+    return retval;
+}
+
 // The following elements that use this callback func must have a 
 // simple 1 to 1 relationship between the markdown lexeme and the html.
 // This means we can simply 'swap out' the two strings without
@@ -36,6 +67,99 @@ static int sem_compile_lexeme_ez(sem_t *semantic_analyzer, const char *compiled_
         fprintf(stderr, "Error: Compile failed for %s. Could not be translated to HTML\n", markdown_lexeme);
         return SEM_FAILURE;
     }
+}
+
+// Implements the semantics for AUDIO and VIDEO 
+// In order for this function to work properly the compiled_lexeme_format parameter
+// must have a snprintf like 'format' style in order to copy the url into the link portion
+// of the compiled string. 
+static int sem_compile_resource_locators(sem_t *semantic_analyzer, const char *compiled_lexeme_format, char *markdown_lexeme)
+{
+    queue *parse_tree = NULL;
+    char *url = NULL;
+    char *compiled_lexeme = NULL;
+    size_t new_comp_str_len;
+    size_t url_len;
+    
+    parse_tree = semantic_analyzer->markdown_parse_tree;
+    if (compiled_lexeme_format && markdown_lexeme && parse_tree)
+    {
+        url = sem_get_content_from_ptree(parse_tree);
+
+        if (!url)
+        {
+            // This shouldnt happen this is a syntax error!
+            return SEM_FAILURE; 
+        }
+        
+        url_len = strlen(url);
+        new_comp_str_len = strlen(compiled_lexeme_format) + url_len + 1;
+
+        if ((compiled_lexeme = malloc(new_comp_str_len)))
+        {
+            memset(compiled_lexeme, '\0', new_comp_str_len);
+            snprintf(compiled_lexeme, new_comp_str_len - 1, compiled_lexeme_format, url); 
+            queue_enqueue(semantic_analyzer->compiled_parse_tree, &compiled_lexeme);
+            free(url);
+
+            return SEM_SUCCESS;
+        }
+
+        return SEM_FAILURE;
+    }
+    else
+    {
+        fprintf(stderr, "Error: Compile failed for %s. Could not be translated to HTML\n", markdown_lexeme);
+        return SEM_FAILURE;
+    }
+}
+
+static int sem_compile_head(sem_t *semantic_analyzer, const char *compiled_lexeme, char *markdown_lexeme)
+{
+    struct lexeme_to_html_translation_entry **entry = NULL;
+    struct lexeme_to_html_translation_entry *current_conversion_entry = NULL;
+    queue *parse_tree = NULL;
+    hashtable_t *lexeme_lookup_tb = NULL;
+    char *current_lexeme = NULL;
+    char *tmp = NULL;
+    int i;
+    
+    lexeme_lookup_tb = (hashtable_t *) semantic_analyzer->lexeme_lookup_table;
+    parse_tree = semantic_analyzer->markdown_parse_tree; 
+
+    // Add <head> to compiled ptree
+    tmp = strdup(compiled_lexeme);
+    queue_enqueue(semantic_analyzer->compiled_parse_tree, &tmp);
+
+    for (i = 0; i < 3; i++)
+    {
+        queue_dequeue(parse_tree, &current_lexeme);
+        if (current_lexeme)
+        {
+            if (istext(current_lexeme))
+            {
+                queue_enqueue(semantic_analyzer->compiled_parse_tree, &current_lexeme);
+            }
+            else
+            {
+                str_tolower(current_lexeme, strlen(current_lexeme));
+                entry = (struct lexeme_to_html_translation_entry **) ht_find(lexeme_lookup_tb, current_lexeme); 
+                
+                if (entry) 
+                {
+                    current_conversion_entry = *entry;
+                    current_conversion_entry->func(semantic_analyzer, current_conversion_entry->first_func_arg, current_lexeme);
+                    free(current_lexeme);
+                }
+            }
+        }
+    }
+
+    // Add </head> to compiled ptree
+    tmp = strdup("</head>");
+    queue_enqueue(semantic_analyzer->compiled_parse_tree, &tmp);
+
+    return SEM_SUCCESS;
 }
 
 // This structre and array holds the neccessary information and
@@ -58,14 +182,13 @@ struct lexeme_to_html_translation_entry lexeme_compile_lookup_table[] =
     { { LISTITEMB, "+" }, sem_compile_lexeme_ez, "<li>" },
     { { LISTITEME, ";" }, sem_compile_lexeme_ez, "</li>" },
     { { NEWLINE, "~" }, sem_compile_lexeme_ez, "<br>" },
-    { { LINKE, "]" }, sem_compile_lexeme_ez, "</a>" }, 
     // The %s will be used to easily place the URL inside the link
-    { { LINKB, "[" }, NULL, "<a href=\"%s\">" },
-    { { AUDIO, "@" }, NULL, "<audio controls> <source src=\"%s\"> </audio>" },
-    { { VIDEO, "%" }, NULL, "<iframe src=\"%s\">" },
+    { { LINKB, "[" }, NULL, "<a href=\"%s\">%s</a>" },
+    { { AUDIO, "@" }, sem_compile_resource_locators, "<audio controls> <source src=\"%s\"> </audio>" },
+    { { VIDEO, "%" }, sem_compile_resource_locators, "<iframe src=\"%s\"/></iframe>" },
     { { VAR_LEXEME, "$def" }, NULL, NULL },
     { { VAR_LEXEME, "$use" }, NULL, NULL },
-    { { HEAD, "^" }, NULL, "<head>" },
+    { { HEAD, "^" }, sem_compile_head, "<head>" },
     { { ITALICS, "*" }, NULL,  "<i>" },
     { { BOLD, "**" }, NULL, "<b>" },
     // There is no special function for handling these symbols
@@ -169,7 +292,7 @@ static void init_lookup_table(hashtable_t **lookup_tb)
     }
 }
 
-static void parse_tree_entry_element_free(void *ele)
+static void compiled_parse_tree_entry_element_free(void *ele)
 {
     if (ele)
     {
@@ -195,7 +318,7 @@ void SEM_create_new(sem_t *sem, queue *parse_tree, char *html_file_name)
         sem->compiled_parse_tree = malloc(sizeof(sem->compiled_parse_tree));
         remove(html_file_name);
         FM_create_new(&sem->file_operator, html_file_name, "w");
-        queue_new(sem->compiled_parse_tree, sizeof(char *), parse_tree_entry_element_free);
+        queue_new(sem->compiled_parse_tree, sizeof(char *), compiled_parse_tree_entry_element_free);
     }
 }
 

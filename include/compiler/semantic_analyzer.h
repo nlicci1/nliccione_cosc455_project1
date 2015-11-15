@@ -6,6 +6,7 @@
 #include "list.h"
 #include "queue.h"
 
+// Return codes 
 #define SEM_SUCCESS 7
 #define SEM_FAILURE 8
 #define SEM_VARIABLE_UNDEFINED_ERROR 9
