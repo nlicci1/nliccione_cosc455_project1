@@ -62,21 +62,20 @@ static char *get_token(syntax_analyzer_t *syn)
     
     // Have the lexer get the next token
     if (LA_get_token(lexer, &tmp_location) == LA_PARSE_SUCCESS)
-    {   
-        // Allocate memory for the new token and copy the token into that new location
-        token_len = strlen(tmp_location);
-        if (token_len && (*retval = (char *) malloc(token_len + 1)))
+    {  
+        // If token is only white space just ignore it
+        if (is_whitespace(tmp_location))
         {
-            memset(*retval, '\0', token_len + 1);
-            strncpy(*retval, tmp_location, token_len);
-            
-            // If token is only white space
-            // Add it straight to the parse tree
-            // And get next token
-            if (is_whitespace(*retval))
+            *retval = get_token(syn);
+        } 
+        else
+        {
+            // Allocate memory for the new token and copy the token into that new location
+            token_len = strlen(tmp_location);
+            if (token_len && (*retval = (char *) malloc(token_len + 1)))
             {
-                update_parse_tree(syn);
-                *retval = get_token(syn);
+                memset(*retval, '\0', token_len + 1);
+                strncpy(*retval, tmp_location, token_len);
             }
         }
     } 
