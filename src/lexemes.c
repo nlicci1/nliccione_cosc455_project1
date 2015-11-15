@@ -35,3 +35,29 @@ value_str_t LEXEME_VAR_STRINGS[] =
     { LEXEME_DEFUSEE_IDX, "$END" },
     { LEXEME_USEB_IDX, "$USE" }, 
 };
+
+bool istext(char *str)
+{
+    bool retval = TRUE;
+
+    if (!str)
+    {
+        return FALSE;
+    }
+
+    lexeme_chars_t spec_char;
+    int i;
+   
+    for (i = 0; i < LEXEME_SPECIAL_CHAR_CNT; i++)
+    {
+        spec_char = lexeme_char_arr[i];
+        
+        if (str[0] == spec_char)
+        {
+            retval = FALSE;
+            break;
+        }
+    }
+    
+    return retval;
+}

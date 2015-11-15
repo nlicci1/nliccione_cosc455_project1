@@ -5,6 +5,7 @@ lexemes.o \
 lexical_analyzer.o  \
 syntax_analyzer.o \
 file_manager.o \
+semantic_analyzer.o \
 hash.o
 INCLUDE = -I ../include/ds/ -I ../include/compiler/
 LIBS = -L ../lib
@@ -28,6 +29,9 @@ lexical_analyzer.o : lexical_analyzer.c ../include/compiler/lexical_analyzer.h .
 
 syntax_analyzer.o : syntax_analyzer.c ../include/compiler/syntax_analyzer.h ../include/compiler/lexical_analyzer.h ../include/compiler/lexemes.h ../include/compiler/main.h
 	$(CC) $(CFLAGS) $(INCLUDE) -c syntax_analyzer.c
+
+semantic_analyzer.o : semantic_analyzer.c ../include/compiler/semantic_analyzer.h ../include/compiler/lexemes.h ../include/compiler/main.h ../include/ds/hash.h
+	$(CC) $(CFLAGS) $(INCLUDE) -c semantic_analyzer.c
 
 hash.o : hash.c ../include/ds/hash.h
 	$(CC) $(CFLAGS) $(INCLUDE) -c hash.c

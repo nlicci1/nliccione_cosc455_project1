@@ -1,11 +1,13 @@
 // file_manager.h/.c is a simple wrapper used to mantain information about a file,
 // hold a stream reference to an opened file,
 // maintain a buffer that is dynamically allocted that is used to read from or write to the file.
+#ifndef FILE_MANAGER_H
+#define FILE_MANAGER_H 
+
+#include <stdio.h>
 
 // Maximum size of the current_token buffer
 #define LA_MAX_TOKEN_SIZE 1000
-
-#include <stdio.h>
 
 typedef struct buffered_stream_manager
 {
@@ -30,3 +32,4 @@ extern file_manager_t *FM_create_new(file_manager_t **, const char *, const char
 // Frees all resources used by the LA structure and sets all the pointers in the struct to NULL
 extern void FM_free(file_manager_t **);
 
+#endif

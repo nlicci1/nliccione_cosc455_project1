@@ -1,6 +1,8 @@
 #ifndef LEXEMES_H
 #define LEXEMES_H
 
+#include "main.h"
+
 typedef enum
 {
     DOC_LEXEME = '#',
@@ -45,5 +47,12 @@ extern value_str_t LEXEME_DOC_STRINGS[];
 #define LEXEME_USEB_IDX 2
 #define LEXEME_VAR_ARRAY_LEN 3
 extern value_str_t LEXEME_VAR_STRINGS[];
+
+// Call this function to see if the str passed in starts with a special
+// lexeme character.
+// Returns:
+// TRUE - If only plain text is in the first element of the str
+// FALSE - If the first char in str is a special syntax character
+bool istext(char *str);
 
 #endif 

@@ -28,31 +28,6 @@ static int is_whitespace(char *str)
     return TRUE;
 }
 
-// Returns TRUE if only plain text is in the first element of the str
-// FALSE Is returned if the first char in str is a special syntax character
-static int istext(char *str)
-{
-    if (!str)
-    {
-        return FALSE;
-    }
-
-    lexeme_chars_t spec_char;
-    int i;
-   
-    for (i = 0; i < LEXEME_SPECIAL_CHAR_CNT; i++)
-    {
-        spec_char = lexeme_char_arr[i];
-        
-        if (str[0] == spec_char)
-        {
-            return FALSE;
-        }
-    }
-    
-    return TRUE;
-}
-
 // Adds current_token element into the parse tree (the queue)
 // This function sets the pointer to the element to null so it can be reused
 // when get_token is called again

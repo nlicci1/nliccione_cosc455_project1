@@ -5,9 +5,11 @@
 #include "main.h"
 #include "lexical_analyzer.h"
 #include "syntax_analyzer.h"
+#include "semantic_analyzer.h"
 
 int main(int argc, char **argv)
 {
+    sem_t sem;
     lexical_analyzer_t *lexer;
     syntax_analyzer_t *sya;
     char *source_file_loc = NULL;
@@ -37,6 +39,11 @@ int main(int argc, char **argv)
     // Begin semantics
     if (sya->parse_tree)
     {
+        print_queue(sya->parse_tree);
+
+        SEM_create_new(&sem, sya->parse_tree, "output.html");
+        SEM_free(&sem);
+
     }
     
     SYN_free(&sya);
@@ -81,5 +88,38 @@ int str_ends_with(char *str, char *suffix)
     }
 
     return retval;
-
 }
+
+static bool print_list_item(void *item)
+{
+    printf("|%s|\n", *(char **) item);
+
+    return TRUE;
+}
+
+void print_queue(queue *q)
+{
+    if (q->list)
+    {
+        list_for_each(q->list, print_list_item);
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
