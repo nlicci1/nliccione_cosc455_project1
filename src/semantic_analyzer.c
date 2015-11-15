@@ -158,6 +158,8 @@ static int sem_compile_head(sem_t *semantic_analyzer, const char *compiled_lexem
     // Add </head> to compiled ptree
     tmp = strdup("</head>");
     queue_enqueue(semantic_analyzer->compiled_parse_tree, &tmp);
+    queue_dequeue(parse_tree, &current_lexeme);
+    free(current_lexeme);
 
     return SEM_SUCCESS;
 }
@@ -280,7 +282,7 @@ static void init_lookup_table(hashtable_t **lookup_tb)
     struct lexeme_to_html_translation_entry *tmp = NULL;
     int i;
 
-    *lookup_tb = ht_create_new(100, sizeof(struct lexeme_to_html_translation_entry *), NULL);
+    *lookup_tb = ht_create_new(256, sizeof(struct lexeme_to_html_translation_entry *), NULL);
     
     for (i = 0; i < SEM_LEXEME_COMPILE_SYMBOL_ARRAY_SIZE; i++)
     {
