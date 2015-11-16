@@ -258,6 +258,9 @@ static void sem_clear_current_scope_level(stack *symbol_table, unsigned int leve
         if (next->scope_level == level)
         {
             stack_pop(symbol_table, &next);
+            free(next->value);
+            free(next->name);
+            free(next);
             next = NULL;
         }
         else
@@ -391,6 +394,7 @@ static int sem_compile_variable_use(sem_t *semantic_analyzer, const char *compil
     // Now that we have successfully resolved the variable name in most recent scope
     // we can now add that value into the compiled tree
     tmp_variable_value = strdup(var_entry.value);
+    free(variable_name);
     queue_enqueue(compiled_parse_tree, &tmp_variable_value);
 
     // And finally lets get rid of the '$end'
@@ -550,8 +554,6 @@ static void free_var_list_entry(void *ele)
         entry = ele;
 
         free(entry->name);
-        free(entry->value);
-        free(entry);
     }
 }
 

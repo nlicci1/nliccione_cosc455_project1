@@ -230,7 +230,8 @@ void ht_free(hashtable_t *tb)
                 ht_entry_free(tb->table[i], tb->free_table_entry_data_cb);
             }
         }
-
+        
+        free(tb->table);
         free(tb);
     }
 }
