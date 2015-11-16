@@ -19,6 +19,7 @@ struct lexeme_to_html_translation_entry
 
 struct variable_entry
 {
+    char *name;
     char *value;
     unsigned int scope_level;
 };
@@ -245,9 +246,165 @@ static int sem_compile_text_style(sem_t *semantic_analyzer, const char *compiled
     return SEM_SUCCESS;
 }
 
+// Removes all entries in the stack with the scope_level == level
+static void sem_clear_current_scope_level(stack *symbol_table, unsigned int level)
+{
+    struct variable_entry *next = NULL;
+
+    while (symbol_table->list->head)
+    {
+        stack_peek(symbol_table, &next);
+
+        if (next->scope_level == level)
+        {
+            stack_pop(symbol_table, &next);
+            next = NULL;
+        }
+        else
+        {
+            break;
+        }
+    }
+    
+
+}
+
+// The purpose of this is to fullfill the API requirments of stack.
+// So it does nothing when called.
+static void _(void *ptr) {}
+
+// Finds a variable target in the symbol_table and assigns its current value to target 
+// if target is in a valid scope of the found entry (if found at all)
+// Returns:
+// TRUE - If found
+// FALSE - If not
+static bool sem_resolve_variable(stack *symbol_table, struct variable_entry *target)
+{
+    stack tmp_stack;
+    bool retval = FALSE;
+    struct variable_entry *next = NULL;
+
+    stack_new(&tmp_stack, sizeof(&target), _);
+
+    while (symbol_table->list->head)
+    {
+        stack_pop(symbol_table, &next);
+        stack_push(&tmp_stack, &next);
+        
+        if (next->scope_level == target->scope_level && (strcmp(target->name, next->name) == 0))
+        {
+            target->value = next->value;
+            retval = TRUE;
+            break;
+        }
+    }
+
+    while (tmp_stack.list->head)
+    {
+        stack_pop(&tmp_stack, &next);
+        stack_push(symbol_table, &next);
+    }
+
+    stack_destroy(&tmp_stack);
+
+    return retval;
+}
+
+static int sem_compile_variable_def(sem_t *semantic_analyzer, const char *compiled_lexeme, char *markdown_lexeme)
+{
+    /* 
+        { { VAR_LEXEME, "$def" }, NULL, NULL },
+        { { VAR_LEXEME, "$use" }, NULL, NULL },
+    */
+    struct variable_entry *var_entry = NULL;
+    queue *markdown_parse_tree = semantic_analyzer->markdown_parse_tree;
+    stack *var_stack = semantic_analyzer->symbol_table;
+    char *variable_def = NULL;
+    char *current_lexeme = NULL;
+    unsigned int scope_level = semantic_analyzer->variable_scope_level;
+
+    // Get variable name from parse tree, alloc memory for a new variable entry 
+    // and add it into the symbol table
+    queue_dequeue(markdown_parse_tree, &variable_def); 
+    var_entry = malloc(sizeof(struct variable_entry));
+    var_entry->name = variable_def;
+
+    // Now lets get rid of the '='
+    queue_dequeue(markdown_parse_tree, &current_lexeme); 
+    free(current_lexeme);
+    
+    // Now lets get the variable value
+    queue_dequeue(markdown_parse_tree, &current_lexeme); 
+    var_entry->value = current_lexeme;
+    var_entry->scope_level = scope_level;
+    stack_push(var_stack, &var_entry);
+    
+    // And finally lets get rid of the '$end'
+    queue_dequeue(markdown_parse_tree, &current_lexeme); 
+    free(current_lexeme);
+
+    return SEM_SUCCESS;
+}
+
+static int sem_compile_variable_use(sem_t *semantic_analyzer, const char *compiled_lexeme, char *markdown_lexeme)
+{
+    struct variable_entry var_entry;
+    queue *markdown_parse_tree = semantic_analyzer->markdown_parse_tree;
+    queue *compiled_parse_tree = semantic_analyzer->compiled_parse_tree;
+    stack *var_stack = semantic_analyzer->symbol_table;
+    char *tmp_variable_value = NULL;
+    char *variable_name = NULL;
+    char *current_lexeme = NULL;
+    unsigned int scope_level = semantic_analyzer->variable_scope_level;
+    bool found_var_entry = FALSE;
+
+    // Get variable name from parse tree, alloc memory for a new variable entry 
+    // and add it into the symbol table
+    queue_dequeue(markdown_parse_tree, &variable_name); 
+    var_entry.name = variable_name;
+    var_entry.value = NULL;
+    var_entry.scope_level = scope_level;
+    
+    while (found_var_entry == FALSE)
+    {
+        found_var_entry = sem_resolve_variable(var_stack, &var_entry);
+        
+        // We are able to decrement the scope levels becuase we delete entries that left
+        // there local scope (e.g leaving a paragraph decrements the scope level)
+        if (var_entry.scope_level > 0)
+        {
+            var_entry.scope_level--;
+        }
+        else
+        {
+            break;
+        }
+    }
+    
+    if (found_var_entry == FALSE)
+    {
+        fprintf(stderr, "Error the variable \"%s\" was not defined\n", variable_name);
+        free(variable_name);
+        return SEM_VARIABLE_UNDEFINED_ERROR;
+    }
+    
+    // Now that we have successfully resolved the variable name in most recent scope
+    // we can now add that value into the compiled tree
+    tmp_variable_value = strdup(var_entry.value);
+    queue_enqueue(compiled_parse_tree, &tmp_variable_value);
+
+    // And finally lets get rid of the '$end'
+    queue_dequeue(markdown_parse_tree, &current_lexeme); 
+    free(current_lexeme);
+
+    return SEM_SUCCESS;
+}
+
+
+
 // This structre and array holds the neccessary information and
 // routines to compile the current lexeme token. 
-#define SEM_LEXEME_COMPILE_SYMBOL_ARRAY_SIZE  21
+#define SEM_LEXEME_COMPILE_SYMBOL_ARRAY_SIZE 17 
 // This is table of callbacks used to handle (compile) each lexeme.
 // Eache table element will be directly mapped to by the use of a hashtable lookup
 struct lexeme_to_html_translation_entry lexeme_compile_lookup_table[] = 
@@ -269,80 +426,16 @@ struct lexeme_to_html_translation_entry lexeme_compile_lookup_table[] =
     { { LINKB, "[" }, sem_compile_link, "<a href=\"%s\">%s</a>" },
     { { AUDIO, "@" }, sem_compile_resource_locators, "<audio controls> <source src=\"%s\"> </audio>" },
     { { VIDEO, "%" }, sem_compile_resource_locators, "<iframe src=\"%s\"/></iframe>" },
-    { { VAR_LEXEME, "$def" }, NULL, NULL },
-    { { VAR_LEXEME, "$use" }, NULL, NULL },
+    { { VAR_LEXEME, "$def" }, sem_compile_variable_def, NULL },
+    { { VAR_LEXEME, "$use" }, sem_compile_variable_use, NULL },
     { { HEAD, "^" }, sem_compile_head, "<head>" },
     { { ITALICS, "*" }, sem_compile_text_style,  "<i>" },
-    { { BOLD, "**" }, sem_compile_text_style, "<b>" },
+    { { BOLD, "**" }, sem_compile_text_style, "<b>" }
     // There is no special function for handling these symbols
     //{ { ADDRESSB, "(" }, NULL, NULL },
     //{ { ADDRESSE, ")" }, NULL, NULL }
     //{ { EQSIGN, "=" }, NULL, NULL },
 };
-
-// Removes all entries in the stack with the scope_level == level
-static void clear_current_scope_level(stack *symbol_table, unsigned int level)
-{
-    struct variable_entry *next = NULL;
-
-    while (symbol_table->list->head)
-    {
-        stack_peek(symbol_table, &next);
-
-        if (next->scope_level == level)
-        {
-            stack_pop(symbol_table, &next);
-            free(next);
-            next = NULL;
-        }
-        else
-        {
-            break;
-        }
-    }
-}
-
-// The purpose of this is to fullfill the API requirments of a stack.
-// So it does nothing when called.
-static void _(void *ptr)
-{
-}
-
-// Finds a variable with same attributes as target
-// Returns:
-// TRUE - If found
-// FALSE - If not
-static bool resolve_variable(stack *symbol_table, struct variable_entry *target)
-{
-    stack tmp_stack;
-    bool retval = FALSE;
-    struct variable_entry *next = NULL;
-
-    stack_new(&tmp_stack, sizeof(&target), _);
-
-    while (symbol_table->list->head)
-    {
-        stack_pop(symbol_table, &next);
-        stack_push(&tmp_stack, &next);
-
-        if (next->scope_level == target->scope_level && (strcmp(target->value, next->value) == 0))
-        {
-            retval = TRUE;
-            break;
-        }
-    }
-
-    while (tmp_stack.list->head)
-    {
-        stack_pop(&tmp_stack, &next);
-        stack_push(symbol_table, &next);
-    }
-
-    stack_destroy(&tmp_stack);
-
-    return retval;
-}
-
 
 int SEM_compile(sem_t *sema)
 {
@@ -366,7 +459,7 @@ int SEM_compile(sem_t *sema)
    
     // Resolve variable names and then
     // Translate markdown -> HTML
-    while (parse_tree->list->head != NULL)
+    while (parse_tree->list->head != NULL && retval == SEM_SUCCESS)
     {
         queue_dequeue(parse_tree, &current_lexeme);
         
@@ -386,23 +479,22 @@ int SEM_compile(sem_t *sema)
                 {
                     sema->variable_scope_level++;
                 }
-                else if (strncmp(current_lexeme, "}", 1) == 0)
+                else if (sema->variable_scope_level > 0 && (strncmp(current_lexeme, "}", 1) == 0))
                 {
                     // Delete variables from symbol_table with current scope level
-                    clear_current_scope_level(defined_vars, sema->variable_scope_level); 
-                    // Dec scope level 
+                    // and then dec scope level 
+                    sem_clear_current_scope_level(defined_vars, sema->variable_scope_level); 
                     sema->variable_scope_level--;
                 }
 
                 if (entry) 
                 {
                     current_conversion_entry = *entry;
-                    current_conversion_entry->func(sema, current_conversion_entry->first_func_arg, current_lexeme);
+                    retval = current_conversion_entry->func(sema, current_conversion_entry->first_func_arg, current_lexeme);
                     free(current_lexeme);
                 }
                 else
                 {
-                    //printf("Func for %s not defined\n", current_lexeme);
                     queue_enqueue(sema->compiled_parse_tree, &current_lexeme);
                 }
             }
@@ -411,11 +503,13 @@ int SEM_compile(sem_t *sema)
         {
             fprintf(stderr, "ERROR: Emptry string found\n");
             retval = SEM_FAILURE;
-            break;
         }
     }
 
     // Write our new HTML queue to the file
+    if (retval == SEM_SUCCESS)
+    {
+    }
     
     return retval;
 }
@@ -449,11 +543,15 @@ static void compiled_parse_tree_entry_element_free(void *ele)
 
 static void free_var_list_entry(void *ele)
 {
-    struct variable_entry *entry;
+    struct variable_entry *entry = NULL;
+
     if (ele)
     {
         entry = ele;
+
+        free(entry->name);
         free(entry->value);
+        free(entry);
     }
 }
 
@@ -461,13 +559,13 @@ void SEM_create_new(sem_t *sem, queue *parse_tree, char *html_file_name)
 {
     if (sem && html_file_name)
     {
-        sem->markdown_parse_tree = parse_tree;
         sem->compiled_parse_tree = NULL;
         sem->file_operator = NULL;
-        sem->symbol_table = NULL;
         sem->variable_scope_level = 0;
+
+        sem->markdown_parse_tree = parse_tree;
         init_lookup_table((hashtable_t **) &sem->lexeme_lookup_table); 
-        
+        sem->symbol_table = malloc(sizeof(stack));
         stack_new(sem->symbol_table, sizeof(struct variable_entry *), free_var_list_entry);
         sem->compiled_parse_tree = malloc(sizeof(sem->compiled_parse_tree));
         remove(html_file_name);
@@ -501,6 +599,7 @@ void SEM_free(sem_t *sem)
         if (sem->symbol_table)
         {
             stack_destroy(sem->symbol_table);
+            free(sem->symbol_table);
         }
     }
 }
