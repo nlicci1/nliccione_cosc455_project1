@@ -315,10 +315,6 @@ static bool sem_resolve_variable(stack *symbol_table, struct variable_entry *tar
 
 static int sem_compile_variable_def(sem_t *semantic_analyzer, const char *compiled_lexeme, char *markdown_lexeme)
 {
-    /* 
-        { { VAR_LEXEME, "$def" }, NULL, NULL },
-        { { VAR_LEXEME, "$use" }, NULL, NULL },
-    */
     struct variable_entry *var_entry = NULL;
     queue *markdown_parse_tree = semantic_analyzer->markdown_parse_tree;
     stack *var_stack = semantic_analyzer->symbol_table;
@@ -512,7 +508,6 @@ int SEM_compile(sem_t *sema)
                 }
                 else
                 {
-                    printf("ha %s\n", current_lexeme);
                     queue_enqueue(sema->compiled_parse_tree, &current_lexeme);
                 }
             }

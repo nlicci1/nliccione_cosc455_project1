@@ -8,12 +8,12 @@ file_manager.o \
 semantic_analyzer.o \
 hash.o
 INCLUDE = -I ../include/ds/ -I ../include/compiler/
-LIBS = -L ../lib
+LIBS = -L ../lib -lcdatastructures
 
 all : markdown_compiler
 
 markdown_compiler : $(OBJECTS)
-	$(CC) -o markdown_compiler $(OBJECTS) $(LIBS) -lcdatastructures
+	$(CC) -o markdown_compiler $(OBJECTS) $(LIBS) 
 
 main.o : main.c ../include/compiler/lexical_analyzer.h ../include/compiler/syntax_analyzer.h ../include/compiler/main.h
 	$(CC) $(CFLAGS) $(INCLUDE) -c main.c
