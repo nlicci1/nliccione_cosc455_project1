@@ -17,6 +17,12 @@ struct lexeme_to_html_translation_entry
     const char *first_func_arg;
 };
 
+struct variable_entry
+{
+    char *value;
+    unsigned int scope_level;
+};
+
 // This function is a simple helper function for LINK
 // This skips over the next symbol frees the memory allocated for it,
 // gets the next symbol (this will be the retval) and then
@@ -274,6 +280,70 @@ struct lexeme_to_html_translation_entry lexeme_compile_lookup_table[] =
     //{ { EQSIGN, "=" }, NULL, NULL },
 };
 
+// Removes all entries in the stack with the scope_level == level
+static void clear_current_scope_level(stack *symbol_table, unsigned int level)
+{
+    struct variable_entry *next = NULL;
+
+    while (symbol_table->list->head)
+    {
+        stack_peek(symbol_table, &next);
+
+        if (next->scope_level == level)
+        {
+            stack_pop(symbol_table, &next);
+            free(next);
+            next = NULL;
+        }
+        else
+        {
+            break;
+        }
+    }
+}
+
+// The purpose of this is to fullfill the API requirments of a stack.
+// So it does nothing when called.
+static void _(void *ptr)
+{
+}
+
+// Finds a variable with same attributes as target
+// Returns:
+// TRUE - If found
+// FALSE - If not
+static bool resolve_variable(stack *symbol_table, struct variable_entry *target)
+{
+    stack tmp_stack;
+    bool retval = FALSE;
+    struct variable_entry *next = NULL;
+
+    stack_new(&tmp_stack, sizeof(&target), _);
+
+    while (symbol_table->list->head)
+    {
+        stack_pop(symbol_table, &next);
+        stack_push(&tmp_stack, &next);
+
+        if (next->scope_level == target->scope_level && (strcmp(target->value, next->value) == 0))
+        {
+            retval = TRUE;
+            break;
+        }
+    }
+
+    while (tmp_stack.list->head)
+    {
+        stack_pop(&tmp_stack, &next);
+        stack_push(symbol_table, &next);
+    }
+
+    stack_destroy(&tmp_stack);
+
+    return retval;
+}
+
+
 int SEM_compile(sem_t *sema)
 {
     if (!sema)
@@ -284,11 +354,13 @@ int SEM_compile(sem_t *sema)
     struct lexeme_to_html_translation_entry **entry = NULL;
     struct lexeme_to_html_translation_entry *current_conversion_entry = NULL;
     queue *parse_tree = NULL;
+    stack *defined_vars = NULL;
     hashtable_t *lexeme_lookup_tb = NULL;
     char *current_lexeme = NULL;
-    //unsigned int *var_scope_level = &sema->variable_scope_level;
+    
     int retval = SEM_SUCCESS;
     
+    defined_vars = sema->symbol_table;
     lexeme_lookup_tb = (hashtable_t *) sema->lexeme_lookup_table;
     parse_tree = sema->markdown_parse_tree;
    
@@ -310,20 +382,17 @@ int SEM_compile(sem_t *sema)
                  
                 entry = (struct lexeme_to_html_translation_entry **) ht_find(lexeme_lookup_tb, current_lexeme); 
                 
-                /*
-                // Update our current scope level as needed
                 if (strncmp(current_lexeme, "{", 1) == 0)
                 {
-                    *var_scope_level++;
+                    sema->variable_scope_level++;
                 }
                 else if (strncmp(current_lexeme, "}", 1) == 0)
                 {
                     // Delete variables from symbol_table with current scope level
-                    
+                    clear_current_scope_level(defined_vars, sema->variable_scope_level); 
                     // Dec scope level 
-                    *var_scope_level--;
+                    sema->variable_scope_level--;
                 }
-                */
 
                 if (entry) 
                 {
@@ -369,11 +438,22 @@ static void init_lookup_table(hashtable_t **lookup_tb)
     }
 }
 
+// Call back func for freeing an element inside the compiled parse tree queue
 static void compiled_parse_tree_entry_element_free(void *ele)
 {
     if (ele)
     {
         free(* (char **) ele);
+    }
+}
+
+static void free_var_list_entry(void *ele)
+{
+    struct variable_entry *entry;
+    if (ele)
+    {
+        entry = ele;
+        free(entry->value);
     }
 }
 
@@ -384,11 +464,11 @@ void SEM_create_new(sem_t *sem, queue *parse_tree, char *html_file_name)
         sem->markdown_parse_tree = parse_tree;
         sem->compiled_parse_tree = NULL;
         sem->file_operator = NULL;
-        sem->symbol_key_list = NULL;
         sem->symbol_table = NULL;
         sem->variable_scope_level = 0;
         init_lookup_table((hashtable_t **) &sem->lexeme_lookup_table); 
         
+        stack_new(sem->symbol_table, sizeof(struct variable_entry *), free_var_list_entry);
         sem->compiled_parse_tree = malloc(sizeof(sem->compiled_parse_tree));
         remove(html_file_name);
         FM_create_new(&sem->file_operator, html_file_name, "w");
@@ -416,6 +496,11 @@ void SEM_free(sem_t *sem)
         if (sem->lexeme_lookup_table)
         {
             ht_free((hashtable_t *) sem->lexeme_lookup_table);
+        }
+
+        if (sem->symbol_table)
+        {
+            stack_destroy(sem->symbol_table);
         }
     }
 }

@@ -3,8 +3,8 @@
 
 #include "file_manager.h"
 #include "hash.h"
-#include "list.h"
 #include "queue.h"
+#include "stack.h"
 
 // Return codes 
 #define SEM_SUCCESS 7
@@ -25,12 +25,10 @@ typedef struct
     // Used to maintain a refernce to an open file and
     // the current string buffer that will be written to the file
     semantic_token_processor_t *file_operator; 
-    // List of defined variables 
-    list *symbol_key_list;
-    // Mantains a table of defined values. The defined value (variable name)
-    // maps to a stack of values that variable has and the scope level it was
-    // defined in. Pro scope level idea by @kboyd34.
-    hashtable_t *symbol_table;
+    // Mantains a stack of defined values. Each stack frame has the name of the variable
+    // and the scope leve it was defined in.
+    // *Pro scope level idea by @kboyd34.
+    stack *symbol_table;
     // This is automatically set and the user should never
     // have to change what this is pointing to and the data inside it
     const hashtable_t *const lexeme_lookup_table;
