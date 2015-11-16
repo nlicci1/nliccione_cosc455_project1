@@ -529,6 +529,10 @@ int SEM_compile(sem_t *sema)
     {
         write(sema->file_operator->fstream, sema->compiled_parse_tree);
     }
+    else
+    {
+        remove(sema->file_operator->file_name);
+    }
     
     return retval;
 }
