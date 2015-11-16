@@ -12,6 +12,7 @@ int main(int argc, char **argv)
     sem_t sem;
     lexical_analyzer_t *lexer;
     syntax_analyzer_t *sya;
+    char *dst_file_loc = NULL;
     char *source_file_loc = NULL;
     int retval = EXIT_SUCCESS;
 
@@ -28,29 +29,40 @@ int main(int argc, char **argv)
         fprintf(stderr, "Error: Invalid file extension.\n");
         return EXIT_FAILURE;
     }
+    
+    // Create output filename
+    dst_file_loc = malloc(strlen(source_file_loc) + 2);
+    memset(dst_file_loc, '\0', strlen(source_file_loc) + 2);
+    strncpy(dst_file_loc, source_file_loc, strstr(source_file_loc, ".mkd") - source_file_loc);
+    strcat(dst_file_loc, ".html");
 
     LA_create_new(&lexer, source_file_loc);
     SYN_create_new(&sya, lexer);
     
     // kick off syntax checker function call thingy here
-    SYN_check_syntax(sya);
+    retval = SYN_check_syntax(sya);
     
-    // If we have a parse tree 
-    // Begin semantics
-    if (sya->parse_tree)
+    // Normalize error codes
+    if (retval == SYN_ANALYZER_PARSE_SUCCESS || retval == SYN_ANALYZER_PARSE_OPT_SUCCESS)
     {
-        print_queue(sya->parse_tree);
-        printf("\n\n\n\n\n\n\n\n\n");
-
-        SEM_create_new(&sem, sya->parse_tree, "output.html");
-        SEM_compile(&sem);
-
-        print_queue(sem.compiled_parse_tree);
-
-        SEM_free(&sem);
-
+        retval = EXIT_SUCCESS;
     }
     
+    if (retval == EXIT_SUCCESS && sya->parse_tree)
+    {
+        SEM_create_new(&sem, sya->parse_tree, dst_file_loc);
+        retval = SEM_compile(&sem);
+        
+        // Normalize return values to EXIT_SUCCESS if successfull
+        if (retval == SEM_SUCCESS)
+        {
+            retval = EXIT_SUCCESS;
+        }
+        
+        SEM_free(&sem);
+    }
+    
+    free(dst_file_loc);
     SYN_free(&sya);
     LA_free(&lexer);
 

@@ -441,6 +441,19 @@ struct lexeme_to_html_translation_entry lexeme_compile_lookup_table[] =
     //{ { EQSIGN, "=" }, NULL, NULL },
 };
 
+// Write our compiled file from memory to a file
+static void write(FILE *html_file, queue *compiled_source)
+{
+    char *compiled_str = NULL;
+
+    while (compiled_source->list->head)
+    {
+        queue_dequeue(compiled_source, &compiled_str);
+        fputs(compiled_str, html_file);
+        free(compiled_str);
+    }
+}
+
 int SEM_compile(sem_t *sema)
 {
     if (!sema)
@@ -499,6 +512,7 @@ int SEM_compile(sem_t *sema)
                 }
                 else
                 {
+                    printf("ha %s\n", current_lexeme);
                     queue_enqueue(sema->compiled_parse_tree, &current_lexeme);
                 }
             }
@@ -513,6 +527,7 @@ int SEM_compile(sem_t *sema)
     // Write our new HTML queue to the file
     if (retval == SEM_SUCCESS)
     {
+        write(sema->file_operator->fstream, sema->compiled_parse_tree);
     }
     
     return retval;
