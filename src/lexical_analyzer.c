@@ -283,14 +283,18 @@ int LA_get_token(lexical_analyzer_t *lexer, char **current_token)
 
 lexical_analyzer_t *LA_create_new(lexical_analyzer_t **lexer, const char *source_file_location)
 {
+    lexical_analyzer_t *retval = NULL;
+
     if (!lexer || !source_file_location)
     {
-        return NULL;
+        return retval;
     }
+
+    retval = (lexical_analyzer_t *) FM_create_new((file_manager_t **) lexer, source_file_location, "r"); 
     
-    if (FM_create_new((file_manager_t **) lexer, source_file_location, "r"))
+    if (retval)
     {
-        return *lexer;
+        return retval;
     }
     else
     {
